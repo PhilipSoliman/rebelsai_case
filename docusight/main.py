@@ -1,9 +1,5 @@
-import os
-
-import uvicorn
 from fastapi import FastAPI
 
-from docusight.config import settings
 from docusight.routers.classification import router as classification_router
 from docusight.routers.insight import router as insight_router
 
@@ -16,6 +12,3 @@ app = FastAPI(
 # connect routers containing endpoints
 app.include_router(insight_router)
 app.include_router(classification_router)
-
-if __name__ == "__main__":
-    uvicorn.run(app, host=settings.SERVER_HOST, port=settings.SERVER_PORT)

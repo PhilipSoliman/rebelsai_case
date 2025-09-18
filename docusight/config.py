@@ -18,11 +18,5 @@ class Settings:
     # Example of future config placeholders
     DATABASE_URL: str = "sqlite:///./rebelsai.db"
 
-    # Host for FastAPI server
-    SERVER_HOST: str = "0.0.0.0"
-
-    # Port for FastAPI server
-    SERVER_PORT: int = 8000
-
 # Create a single instance to import everywhere
 settings = Settings()

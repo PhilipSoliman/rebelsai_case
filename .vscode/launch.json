@@ -8,12 +8,13 @@
             "name": "Python Debugger: FastAPI (Custom)",
             "type": "debugpy",
             "request": "launch",
-            "module": "uvicorn",
+            "module": "fastapi",
             "args": [
-                "main:app",
-                "--reload"
+                "dev",
+                "${file}",
             ],
-            "jinja": true
+            "jinja": true,
+            "cwd": "${workspaceFolder}",
         }
     ]
 }

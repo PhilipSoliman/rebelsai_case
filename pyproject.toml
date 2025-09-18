@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools"]
+
+[project]
+name = "docusight"
+version = "0.1.0"
+description = "API for document insights and classification"
+authors = [
+    { name = "Philip Soliman", email = "philipsoliman4133@gmail.com" }
+]
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+dependencies = [
+    "fastapi[standard]",
+    "sqlalchemy",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["docusight*"]
+
+[project.urls]
+Homepage = "https://github.com/PhilipSoliman/rebelsai_case"
+Documentation = "https://github.com/PhilipSoliman/rebelsai_case/blob/main/README.md"
+Source = "https://github.com/PhilipSoliman/rebelsai_case"
+Endpoint = "http://127.0.0.1:8000"

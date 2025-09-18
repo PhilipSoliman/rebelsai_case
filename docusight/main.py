@@ -1,33 +1,21 @@
-from typing import Union
+import os
 
 import uvicorn
 from fastapi import FastAPI
-from pydantic import BaseModel
-import os
-from pathlib import Path
 
-# hardcoded folder path (not realistic, just for demo purposes)
-CLIENT_FOLDER = Path(os.path.dirname(os.path.abspath(__file__))) / "client"
+from docusight.config import settings
+from docusight.routers.classification import router as classification_router
+from docusight.routers.insight import router as insight_router
 
 # main application instance
-app = FastAPI()
+app = FastAPI(
+    title="DocuSight API",
+    description="API for document insights and classification",
+)
 
-@app.get("/")
-async def read_root():
-    return {"Hello": "World"}
-
-class Item(BaseModel):
-    name: str
-    price: float
-    is_offer: Union[bool, None] = None
-
-@app.get("/items/{item_id}")
-async def read_item(item_id: int, q: Union[str, None] = None):
-    return {"item_id": item_id, "q": q}
-
-@app.put("/items/{item_id}")
-async def update_item(item_id: int, item: Item):
-    return {"item_name": item.name, "item_id": item_id}
+# connect routers containing endpoints
+app.include_router(insight_router)
+app.include_router(classification_router)
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host=settings.SERVER_HOST, port=settings.SERVER_PORT)

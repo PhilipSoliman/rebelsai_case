@@ -5,7 +5,7 @@ from docusight.routers.insight import router as insight_router
 
 # main application instance
 app = FastAPI(
-    title="DocuSight API",
+    title="📄👀 DocuSight API",
     description="API for document insights and classification",
 )
 

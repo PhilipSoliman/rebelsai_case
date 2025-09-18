@@ -5,6 +5,20 @@ It can scan a folder of documents, extract metadata, and perform document classi
 
 ---
 
+## Requirements
+* Python 3.9+
+
+## Setup
+1. Clone this repository.
+2. Move to the project directory.
+  ```bash
+  cd rebelsai_case
+  ```
+3. Run setup script:
+  ```bash
+  <your preferred base python> setup_env.py
+  ```
+
 ## Features
 
 * **Folder Insight Endpoint**
@@ -41,13 +55,16 @@ It can scan a folder of documents, extract metadata, and perform document classi
 ## Project Structure
 
 ```
-app/
+client_data/           # Sample documents for testing
+docusight/
 │── main.py            # FastAPI entrypoint
+│── models.py          # SQLAlchemy models
+│── database.py        # Database connection and session management
+│── config.py          # Configuration settings
+│── routes/
+│   │── folder.py      # Folder insight endpoints
+│   │── classification.py  # Document classification endpoints
 ```
-
----
-
-## Running the App
 
 1. **Install dependencies**
 

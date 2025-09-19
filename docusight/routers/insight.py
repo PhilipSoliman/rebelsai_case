@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.future import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from docusight.config import settings
 from docusight.database import get_db
@@ -54,7 +54,7 @@ class FolderResponseModel(BaseModel):
     subfolders: Optional[list["FolderResponseModel"]] = []
 
 
-async def generate_folder_response(folder: Folder, db: Session) -> FolderResponseModel:
+async def generate_folder_response(folder: Folder, db: AsyncSession) -> FolderResponseModel:
     documents = await get_documents_in_folder(folder, db)
     subfolders = await get_subfolders_in_folder(folder, db)
     return FolderResponseModel(
@@ -71,7 +71,7 @@ async def generate_folder_response(folder: Folder, db: Session) -> FolderRespons
 # API Endpoints
 @router.post("/folder", response_model=FolderResponseModel)
 async def post_folder(
-    folder_path: str = None, drill: bool = True, db: Session = Depends(get_db)
+    folder_path: str = None, drill: bool = True, db: AsyncSession = Depends(get_db)
 ):
     """
     Add Folder and its documents to database. If no folder_path is provided, it defaults to the CLIENT_DATA_DIR.
@@ -80,7 +80,7 @@ async def post_folder(
     Args:
         folder_path (str, optional): Path to the folder to be added. Defaults to None.
         drill (bool, optional): Whether to recursively add subfolders. Defaults to True.
-        db (Session, optional): Database session. Defaults to Depends(get_db).
+        db (AsyncSession, optional): Database AsyncSession. Defaults to Depends(get_db).
 
     Returns:
         dict: Information about the added folder.
@@ -108,18 +108,8 @@ async def post_folder(
     return response
 
 
-# @router.get("/metadata")
-# async def get_insight(folder_path: str = None):
-#     """
-#     Get metadata insights of files in the specified folder.
-#     If no folder_path is provided, it defaults to the CLIENT_DATA_DIR.
-#     """
+# TODO: Add endpoint for folder deletion
 
-#     path = Path(folder_path) if folder_path else settings.CLIENT_DATA_DIR
-#     insights = await analyze_folder(path)
-#     return insights
-#     """
+# TODO: Add endpoint for document deletion
 
-#     path = Path(folder_path) if folder_path else settings.CLIENT_DATA_DIR
-#     insights = await analyze_folder(path)
-#     return insights
+# TODO: Add endpoint for 

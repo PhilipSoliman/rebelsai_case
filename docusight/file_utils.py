@@ -3,16 +3,17 @@ from pathlib import Path
 from typing import Optional
 
 from sqlalchemy.future import select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import selectinload
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from docusight.models import Document, Folder
 
 
-async def add_folder_to_database(folder_path: str, db: Session, drill: bool) -> Folder:
+async def add_folder_to_database(folder_path: str, db: AsyncSession, drill: bool) -> Folder:
     """Add a folder and its documents to the database.
     Args:
         folder (Folder): Folder object to be added.
-        db (Session): Database session.
+        db (AsyncSession): Database AsyncSession.
         drill (bool, optional): Whether to recursively add subfolders. Defaults to True.
     """
 
@@ -22,7 +23,7 @@ async def add_folder_to_database(folder_path: str, db: Session, drill: bool) -> 
 
 async def add_folder_to_database_recursive(
     current_path: str,
-    db: Session,
+    db: AsyncSession,
     drill: bool,
     parent_folder: Optional[Folder] = None,
 ) -> Folder:
@@ -57,7 +58,7 @@ async def add_folder_to_database_recursive(
     return folder
 
 
-async def get_folder_by_path(path: str, db: Session) -> Optional[Folder]:
+async def get_folder_by_path(path: str, db: AsyncSession) -> Optional[Folder]:
     result = await db.execute(
         select(Folder)
         .options(selectinload(Folder.documents), selectinload(Folder.subfolders))
@@ -66,11 +67,11 @@ async def get_folder_by_path(path: str, db: Session) -> Optional[Folder]:
     return result.scalars().first()
 
 
-async def get_documents_in_folder(folder: Folder, db: Session) -> list[Document]:
+async def get_documents_in_folder(folder: Folder, db: AsyncSession) -> list[Document]:
     result = await db.execute(select(Document).where(Document.folder_id == folder.id))
     return result.scalars().all()
 
 
-async def get_subfolders_in_folder(folder: Folder, db: Session) -> list[Folder]:
+async def get_subfolders_in_folder(folder: Folder, db: AsyncSession) -> list[Folder]:
     result = await db.execute(select(Folder).where(Folder.parent_id == folder.id))
     return result.scalars().all()

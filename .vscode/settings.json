@@ -1,0 +1,18 @@
+{
+    "actionButtons": {
+        "commands": [
+            {
+                "name": "▶️ Open Simple Browser",
+                "color": "accent",
+                "command": "workbench.action.tasks.runTask",
+                "args": [ 
+                    "Open Simple Browser"
+                ],
+                "useVsCodeApi": true,
+            }
+        ],
+        "defaultColor": "white",
+        "reloadButton": "↻",
+        "loadNpmCommands": false
+    }
+}

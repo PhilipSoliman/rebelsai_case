@@ -8,7 +8,12 @@ from sqlalchemy.orm import Session
 
 from docusight.config import settings
 from docusight.database import get_db
-from docusight.file_utils import add_folder_to_database, get_folder_by_path
+from docusight.file_utils import (
+    add_folder_to_database,
+    get_documents_in_folder,
+    get_folder_by_path,
+    get_subfolders_in_folder,
+)
 from docusight.logging import logger
 from docusight.models import Document, Folder
 
@@ -50,14 +55,8 @@ class FolderResponseModel(BaseModel):
 
 
 async def generate_folder_response(folder: Folder, db: Session) -> FolderResponseModel:
-    subfolders_result = await db.execute(
-        select(Folder).where(Folder.parent_id == folder.id)
-    )
-    subfolders = subfolders_result.scalars().all()
-    documents_result = await db.execute(
-        select(Document).where(Document.folder_id == folder.id)
-    )
-    documents = documents_result.scalars().all()
+    documents = await get_documents_in_folder(folder, db)
+    subfolders = await get_subfolders_in_folder(folder, db)
     return FolderResponseModel(
         id=folder.id,
         path=folder.path,
@@ -114,6 +113,11 @@ async def post_folder(
 #     """
 #     Get metadata insights of files in the specified folder.
 #     If no folder_path is provided, it defaults to the CLIENT_DATA_DIR.
+#     """
+
+#     path = Path(folder_path) if folder_path else settings.CLIENT_DATA_DIR
+#     insights = await analyze_folder(path)
+#     return insights
 #     """
 
 #     path = Path(folder_path) if folder_path else settings.CLIENT_DATA_DIR

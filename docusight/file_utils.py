@@ -64,3 +64,13 @@ async def get_folder_by_path(path: str, db: Session) -> Optional[Folder]:
         .where(Folder.path == str(path))
     )
     return result.scalars().first()
+
+
+async def get_documents_in_folder(folder: Folder, db: Session) -> list[Document]:
+    result = await db.execute(select(Document).where(Document.folder_id == folder.id))
+    return result.scalars().all()
+
+
+async def get_subfolders_in_folder(folder: Folder, db: Session) -> list[Folder]:
+    result = await db.execute(select(Folder).where(Folder.parent_id == folder.id))
+    return result.scalars().all()

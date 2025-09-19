@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from docusight.config import settings
 from docusight.database import get_db
 from docusight.file_utils import add_folder_to_database, get_folder_by_path
+from docusight.logging import logger
 from docusight.models import Document, Folder
 
 router = APIRouter(
@@ -91,15 +92,15 @@ async def post_folder(
     # Check if folder already exists in the database
     existing_folder = await get_folder_by_path(str(path), db)
     if existing_folder:
-        return await generate_folder_response(
-            existing_folder, message="Folder already exists in the database."
-        )
+        logger.info(f"Folder {path} already already exists in the database.")
+        return await generate_folder_response(existing_folder, db)
 
     # add folder to database
     folder = await add_folder_to_database(str(path), db, drill)
 
     # generate response
     response = await generate_folder_response(folder, db)
+    logger.info(f"Added folder {path} to the database.")
 
     # Commit the transaction and refresh the folder instance
     await db.commit()

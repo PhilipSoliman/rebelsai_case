@@ -14,6 +14,7 @@ license = "MIT"
 dependencies = [
     "fastapi[standard]",
     "sqlalchemy",
+    "aiosqlite",
 ]
 
 [tool.setuptools.packages.find]

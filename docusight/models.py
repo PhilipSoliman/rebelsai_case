@@ -1,18 +1,40 @@
+from sqlalchemy import JSON, Column, ForeignKey, Integer, String, Float
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, JSON, ForeignKey
 from sqlalchemy.orm import relationship
 
 Base = declarative_base()
+
+
+class Folder(Base):
+    __tablename__ = "folders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    path = Column(String, unique=True, index=True)
+    parent_id = Column(Integer, ForeignKey("folders.id"), nullable=True)
+
+    # Relationship to Documents and other Folders
+    documents = relationship("Document", back_populates="folder")
+    subfolders = relationship("Folder", back_populates="parent_folder")
+    parent_folder = relationship(
+        "Folder", back_populates="subfolders", remote_side=[id]
+    )
+
 
 class Document(Base):
     __tablename__ = "documents"
 
     id = Column(Integer, primary_key=True, index=True)
+    folder_id = Column(Integer, ForeignKey("folders.id"))
     filename = Column(String, index=True)
     path = Column(String)
-    metadata = Column(JSON)
+    size = Column(Integer)
+    created = Column(Float)
+    modified = Column(Float)
 
+    # Relationships to Folder and Classification
+    folder = relationship("Folder", back_populates="documents")
     classifications = relationship("Classification", back_populates="document")
+
 
 class Classification(Base):
     __tablename__ = "classifications"
@@ -22,4 +44,5 @@ class Classification(Base):
     label = Column(String)
     score = Column(String)
 
+    # Relationship to Document
     document = relationship("Document", back_populates="classifications")

@@ -15,7 +15,7 @@ class Settings:
     CLIENT_DATA_DIR: Path = PROJECT_DIR / "client_data"
 
     # Example of future config placeholders
-    DATABASE_URL: str = "sqlite:///./rebelsai.db"
+    DATABASE_URL: str = "sqlite+aiosqlite:///./rebelsai.db"
 
 # Create a single instance to import everywhere
 settings = Settings()

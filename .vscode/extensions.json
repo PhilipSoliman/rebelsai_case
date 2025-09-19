@@ -1,6 +1,7 @@
 {
   "recommendations": [
     "ms-python.python",
-    "seunlanlege.action-buttons"
+    "seunlanlege.action-buttons",
+    "qwtel.sqlite-viewer"
   ]
 }

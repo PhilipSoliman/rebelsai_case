@@ -1,6 +1,7 @@
 import os
 import subprocess
 import venv
+from pathlib import Path
 
 # Get the absolute path of the project directory
 PROJECT_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -42,6 +43,21 @@ def install_package():
     )
     print(f"✅ Installed local package in {PROJECT_DIR}\n")
 
+
+def generate_default_env():
+    env_path = Path(__file__).resolve().parent / ".env"
+    if env_path.exists():
+        print(f".env file already exists at {env_path}")
+        return
+    default_content = """
+DATABASE_URL=sqlite+aiosqlite:///./rebelsai.db
+DROPBOX_ACCESS_TOKEN=your_dropbox_token_here
+"""
+    env_path.write_text(default_content.strip())
+    print(f"Default .env file created at {env_path}")
+
+
 if __name__ == "__main__":
     create_virtual_environment()
     install_package()
+    generate_default_env()

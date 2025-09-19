@@ -3,7 +3,6 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from docusight.config import settings
@@ -60,7 +59,7 @@ async def generate_folder_response(folder: Folder, db: AsyncSession) -> FolderRe
     return FolderResponseModel(
         id=folder.id,
         path=folder.path,
-        parent_id=folder.parent_id,
+        parent_id=folder.parent_id, 
         documents=[generate_document_response(doc) for doc in documents],
         subfolders=[
             await generate_folder_response(subfolder, db) for subfolder in subfolders

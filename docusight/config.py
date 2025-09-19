@@ -1,10 +1,19 @@
 from pathlib import Path
 
-class Settings:
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
     """
     Configuration settings for the RebelsAI app.
-    Can be extended for database URLs, API keys, upload paths, etc.
+    Sensitive values are loaded from environment variables (.env file).
+    Static paths are set here.
     """
+
+    # Sensitive values (loaded from .env)
+    DATABASE_URL: str
+    DROPBOX_ACCESS_TOKEN: str
+
     # Base directory of the project
     PROJECT_DIR: Path = Path(__file__).resolve().parent.parent
 
@@ -14,8 +23,16 @@ class Settings:
     # Path to (dummy) client data folder (for testing / prototyping)
     CLIENT_DATA_DIR: Path = PROJECT_DIR / "client_data"
 
-    # Example of future config placeholders
-    DATABASE_URL: str = "sqlite+aiosqlite:///./rebelsai.db"
+    # Upload directory (in dropbox, relative to root)
+    UPLOAD_DIR: Path = Path("/uploads")
+
+    class Config:
+        env_file = "../.env"  # relative to config.py
 
 # Create a single instance to import everywhere
 settings = Settings()
+
+# Check dropbox token
+def is_dropbox_token_set() -> bool:
+    token = settings.DROPBOX_ACCESS_TOKEN
+    return bool(token) and token != "your_dropbox_token_here"

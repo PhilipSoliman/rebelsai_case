@@ -48,4 +48,3 @@ app = FastAPI(
 # connect routers containing endpoints
 app.include_router(insight_router)
 app.include_router(classification_router)
-app.include_router(classification_router)

@@ -8,3 +8,6 @@
 
 # env
 .env
+
+# temp files
+**/temp/

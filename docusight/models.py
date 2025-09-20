@@ -1,4 +1,4 @@
-from sqlalchemy import JSON, Column, ForeignKey, Integer, String, Float
+from sqlalchemy import Column, ForeignKey, Integer, String, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
@@ -10,6 +10,7 @@ class Folder(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     path = Column(String, unique=True, index=True)
+    name = Column(String, index=True)
     parent_id = Column(Integer, ForeignKey("folders.id"), nullable=True)
 
     # Relationship to Documents and other Folders
@@ -27,6 +28,7 @@ class Document(Base):
     folder_id = Column(Integer, ForeignKey("folders.id"))
     filename = Column(String, index=True)
     path = Column(String)
+    dropbox_path = Column(String, nullable=True)
     size = Column(Integer)
     created = Column(Float)
     modified = Column(Float)

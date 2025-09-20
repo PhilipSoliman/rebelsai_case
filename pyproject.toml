@@ -16,7 +16,8 @@ dependencies = [
     "sqlalchemy",
     "aiosqlite",
     "dropbox",
-    "pydantic-settings"
+    "pydantic-settings",
+    "aiofiles"
 ]
 
 [tool.setuptools.packages.find]

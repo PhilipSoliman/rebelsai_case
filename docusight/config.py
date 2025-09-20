@@ -20,11 +20,23 @@ class Settings(BaseSettings):
     # Base directory for app-specific files
     APP_DIR: Path = PROJECT_DIR / "docusight"
 
+    # Temporary directory for processing files
+    TEMP_DIR: Path = APP_DIR / "temp"
+
     # Path to (dummy) client data folder (for testing / prototyping)
     CLIENT_DATA_DIR: Path = PROJECT_DIR / "client_data"
 
+    # Path to (dummy) client zipped folder
+    CLIENT_ZIPPED_FOLDER: Path = CLIENT_DATA_DIR.with_suffix(".zip")
+
     # Upload directory (in dropbox, relative to root)
-    UPLOAD_DIR: Path = Path("/uploads")
+    UPLOAD_DIR: str = "/uploads"
+
+    # User name place holder TODO: implement user management
+    DEFAULT_USER_NAME: str = "default_user"
+
+    # File read chunk size (in bytes) when processing large files
+    FILE_READ_CHUNK_SIZE: int = 1024 * 1024  # 1 MB
 
     class Config:
         env_file = "../.env"  # relative to config.py

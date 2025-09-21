@@ -22,6 +22,18 @@ from docusight.logging import logger
 from docusight.models import Document, Folder
 
 
+class MetaDict(dict):
+    size: int
+    created: float
+    modified: float
+
+    def __init__(self, size: int, created: float, modified: float):
+        super().__init__(size=size, created=created, modified=modified)
+
+    def __getattr__(self, item):
+        return self[item]
+
+
 async def add_zipped_folder_to_database(
     request: Request,
     zipped_folder: UploadFile,
@@ -53,16 +65,15 @@ async def add_zipped_folder_to_database(
 
     # convert files to plain text (+ overwrite paths)
     tmp_client_paths = [Path(p) for p in tmp_client_dir.rglob("*.*")]
-    tmp_client_paths = await convert_files_to_plain_text(tmp_client_paths)
+    tmp_client_txt_file_map = await convert_files_to_plain_text(tmp_client_paths)
 
     # add folder to database
-    folder = await add_folder_to_database(tmp_client_dir, tmp_dir, db, drill)
+    folder = await add_folder_to_database(tmp_client_dir, tmp_dir, db, drill, tmp_client_txt_file_map)
 
     # upload plain text paths to dropbox
-    if tmp_client_paths:
-        dropbox_paths = await upload_files_to_dropbox(
-            request, tmp_client_paths, tmp_dir
-        )
+    dropbox_paths = await upload_files_to_dropbox(
+        request, tmp_client_txt_file_map.keys(), tmp_dir
+    )
     for local_path, dropbox_path in dropbox_paths.items():
         document = await get_document_by_path(str(local_path), db)
         if document:
@@ -113,25 +124,36 @@ def extract_zip(tmp_zipped_folder_path: Path):
         zip_ref.extractall(tmp_zipped_folder_path.parent)
 
 
-async def convert_files_to_plain_text(paths: list[Path]) -> list[Path]:
+async def convert_files_to_plain_text(paths: list[Path]) -> dict[Path, MetaDict]:
     """
     Converts multiple files to plain text if supported. Deletes old files and saves plain text versions.
 
     Supported types: .txt, .docx, .pdf, .csv, .rtf, .html
+
+    Args:
+        paths (list[Path]): List of file paths to convert.
+    Returns:
+        dict[Path, dict]: Mapping of plain text file paths to original file metadata.
     """
-    plain_text_paths = []
+    plain_text_files = {}
     for path in paths:
         text = await file_to_plain_text(path)
 
         if text is not None:
+            original_stats = path.stat()
+            original_meta = MetaDict(
+                size=original_stats.st_size,
+                created=original_stats.st_ctime,
+                modified=original_stats.st_mtime,
+            )
             plain_text_path = path.with_suffix(".txt")
-            plain_text_paths.append(plain_text_path)
+            plain_text_files[plain_text_path] = original_meta
             async with aiofiles.open(
                 plain_text_path, "w", encoding="utf-8", errors="replace"
             ) as f:
                 await f.write(text)
             await run_in_threadpool(path.unlink)
-    return plain_text_paths
+    return plain_text_files
 
 
 async def file_to_plain_text(path: Path) -> Optional[str]:
@@ -148,46 +170,20 @@ async def file_to_plain_text(path: Path) -> Optional[str]:
             ) as f:
                 return await f.read()
         elif ext == ".docx":
-
-            def read_docx(p):
-                doc = DocxDocument(str(p))
-                return "\n".join([para.text for para in doc.paragraphs])
-
             return await run_in_threadpool(read_docx, path)
         elif ext == ".pdf":
-
-            def read_pdf(p):
-                text = ""
-                with open(p, "rb") as f:
-                    reader = PyPDF2.PdfReader(f)
-                    for page in reader.pages:
-                        text += page.extract_text() or ""
-                return text
-
             return await run_in_threadpool(read_pdf, path)
         elif ext == ".csv":
             async with aiofiles.open(
                 path, "r", encoding="utf-8", errors="replace"
             ) as f:
                 content = await f.read()
-
-            def parse_csv(data):
-                lines = []
-                for row in csv.reader(data.splitlines()):
-                    lines.append(",".join(row))
-                return "\n".join(lines)
-
             return await run_in_threadpool(parse_csv, content)
         elif ext in [".htm", ".html"]:
             async with aiofiles.open(
                 path, "r", encoding="utf-8", errors="replace"
             ) as f:
                 html = await f.read()
-
-            def parse_html(data):
-                soup = BeautifulSoup(data, "html.parser")
-                return soup.get_text()
-
             return await run_in_threadpool(parse_html, html)
         elif ext == ".rtf":
             async with aiofiles.open(
@@ -203,12 +199,38 @@ async def file_to_plain_text(path: Path) -> Optional[str]:
         return None
 
 
+def read_docx(p):
+    doc = DocxDocument(str(p))
+    return "\n".join([para.text for para in doc.paragraphs])
+
+
+def read_pdf(p):
+    text = ""
+    with open(p, "rb") as f:
+        reader = PyPDF2.PdfReader(f)
+        for page in reader.pages:
+            text += page.extract_text() or ""
+    return text
+
+
+def parse_csv(data):
+    lines = []
+    for row in csv.reader(data.splitlines()):
+        lines.append(",".join(row))
+    return "\n".join(lines)
+
+
+def parse_html(data):
+    soup = BeautifulSoup(data, "html.parser")
+    return soup.get_text()
+
+
 async def add_folder_to_database(
     current_dir: Path,
     tmp_dir: Path,
     db: AsyncSession,
     drill: bool,
-    # file_paths: list[Path],
+    original_file_map: dict[Path, MetaDict],
     parent_folder: Optional[Folder] = None,
 ) -> Folder:
     """
@@ -235,16 +257,13 @@ async def add_folder_to_database(
     for file in os.listdir(current_dir):
         file_path = Path(current_dir) / file
         if file_path.is_file():
-            # file_paths.append(file_path)
-            stats = file_path.stat()
+            original_meta = original_file_map.pop(file_path)
             document = Document(
                 folder=folder,
                 filename=file,
                 path=str(file_path.relative_to(tmp_dir)),
                 dropbox_path=None,  # to be updated after upload
-                size=stats.st_size,
-                created=stats.st_ctime,
-                modified=stats.st_mtime,
+                **original_meta,
             )
             db.add(document)
 
@@ -258,7 +277,7 @@ async def add_folder_to_database(
                     tmp_dir,
                     db,
                     drill,
-                    # file_paths=file_paths,
+                    original_file_map,
                     parent_folder=folder,
                 )
     return folder
@@ -511,6 +530,7 @@ async def download_files_from_dropbox(
             dropbox_client.files_download_to_file, download_path, dropbox_path
         )
 
+    return download_paths
     return download_paths
     return download_paths
     return download_paths

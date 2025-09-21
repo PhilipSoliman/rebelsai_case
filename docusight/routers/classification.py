@@ -52,10 +52,8 @@ async def classify_folder(
     """
     # create temporary directory for downloads
     download_folder_id = str(uuid.uuid4())
-    tmp_dir = (
-            Path(settings.TEMP_DIR) / settings.DEFAULT_USER_NAME / download_folder_id
-        )
-    
+    tmp_dir = Path(settings.TEMP_DIR) / settings.DEFAULT_USER_NAME / download_folder_id
+
     try:
         # obtain folder and documents
         folder: Folder = await get_folder_by_path(folder_path, db)
@@ -72,7 +70,7 @@ async def classify_folder(
             raise HTTPException(
                 status_code=400, detail="No documents with Dropbox paths found"
             )
- 
+
         os.makedirs(tmp_dir, exist_ok=True)
         local_paths: list[Path] = await download_files_from_dropbox(
             request.app.state.dropbox, dropbox_paths, tmp_dir
@@ -80,14 +78,16 @@ async def classify_folder(
 
         # classify each document
         classifier: Pipeline = request.app.state.sentiment_classifier
-        classification_responses = []
+        classifications = []
         batch_size = settings.CLASSIFICATION_BATCH_SIZE
         for i in range(0, len(local_paths), batch_size):
             # read batch of files
             batch_paths = local_paths[i : i + batch_size]
             batch_texts = []
             for doc_path in batch_paths:
-                async with aiofiles.open(doc_path, "r", encoding="utf-8", errors="replace") as f:
+                async with aiofiles.open(
+                    doc_path, "r", encoding="utf-8", errors="replace"
+                ) as f:
                     text = await f.read()
                     batch_texts.append(text)
 
@@ -104,14 +104,8 @@ async def classify_folder(
                 classification = Classification(document=doc, label=label, score=score)
                 db.add(classification)
 
-                # Prepare response
-                classification_response = DocumentClassificationResponseModel(
-                    id=classification.id,
-                    document_id=doc.id,
-                    label=label,
-                    score=score,
-                )
-                classification_responses.append(classification_response)
+                # store classification for response
+                classifications.append(classification)
 
         # Remove temporary directory
         await run_in_threadpool(shutil.rmtree, tmp_dir)
@@ -120,6 +114,16 @@ async def classify_folder(
         await db.commit()
         await db.refresh(folder)
 
+        # Prepare responses
+        classification_responses = []
+        for classification in classifications:
+            classification_response = DocumentClassificationResponseModel(
+                id=classification.id,
+                document_id=classification.document_id,
+                label=classification.label,
+                score=classification.score,
+            )
+            classification_responses.append(classification_response)
         return FolderClassificationResponseModel(
             folder_path=folder.path,
             classified_documents=classification_responses,

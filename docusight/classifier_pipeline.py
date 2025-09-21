@@ -26,9 +26,9 @@ def setup_pipeline(app: FastAPI):
             device=settings.GPU_DEVICE,
         )
 
-        # pre-compile model for faster inference (PyTorch 2.0+)
-        model = torch.compile(model)
-        sentiment_classifier.model = model
+        # # pre-compile model for faster inference (PyTorch 2.0+, CUDA > 7.0)
+        # model = torch.compile(model)
+        # sentiment_classifier.model = model
 
         app.state.sentiment_classifier = sentiment_classifier
 

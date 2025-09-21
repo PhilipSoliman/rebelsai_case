@@ -39,8 +39,8 @@ class Settings(BaseSettings):
     # File read chunk size (in bytes) when processing large files
     ZIP_FILE_READ_CHUNK_SIZE: int = 1024 * 1024  # 1 MB
 
-    # Model name for classification
-    CLASSIFICATION_MODEL_NAME: str = "distilbert-base-uncased-finetuned-sst-2-english"
+    # Model name for classification TODO: Find dutch sentiment analysis model
+    CLASSIFICATION_MODEL_NAME: str = "pdelobelle/robbert-v2-dutch-sentiment"
 
     # GPU device
     GPU_DEVICE: int = 0 if torch.cuda.is_available() else -1

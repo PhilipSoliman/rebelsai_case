@@ -1,3 +1,4 @@
+import asyncio
 import os
 import shutil
 import uuid
@@ -11,7 +12,6 @@ from fastapi import HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy.orm import selectinload
 
 from docusight.config import settings
 from docusight.logging import logger
@@ -99,20 +99,6 @@ def extract_zip(tmp_zipped_folder_path: Path):
     """
     with zipfile.ZipFile(tmp_zipped_folder_path, "r") as zip_ref:
         zip_ref.extractall(tmp_zipped_folder_path.parent)
-
-
-async def delete_extracted_files(tmp_zipped_folder_path: Path):
-    """
-    Asynchronously deletes all files and subdirectories in the extracted folder.
-
-    Args:
-        tmp_zipped_folder_path (Path): Path to the extracted folder.
-    """
-    for root, dirs, files in os.walk(tmp_zipped_folder_path, topdown=False):
-        for name in files:
-            await run_in_threadpool(os.remove, os.path.join(root, name))
-        for name in dirs:
-            await run_in_threadpool(os.rmdir, os.path.join(root, name))
 
 
 async def add_folder_to_database(
@@ -226,6 +212,7 @@ async def upload_files_to_dropbox(
             )
 
             # Append the rest of the chunks using aiofiles for async file I/O
+            #TODO: convert to plain text files before upload
             cursor = files.UploadSessionCursor(session_id=session_id, offset=0)
             async with aiofiles.open(file_path, "rb") as file:
                 while True:
@@ -303,8 +290,6 @@ async def get_folder_by_segments(
 
         # search for the folder by name
         query = query.where(Folder.name == segment)
-        # if parent_id is not None:
-        #     query = query.where(Folder.parent_id == parent_id)
         result = await db.execute(query)
         folder = result.scalars().first()
         if not folder:
@@ -324,7 +309,6 @@ async def get_folder_by_path(path: str, db: AsyncSession) -> Optional[Folder]:
     Returns:
         Optional[Folder]: The Folder ORM instance, or None if not found.
     """
-    # Traverse the folder hierarchy using path segments
     segments = Path(path).parts
     return await get_folder_by_segments(segments, db)
 
@@ -359,7 +343,9 @@ async def get_document_by_path(path: str, db: AsyncSession) -> Optional[Document
     return result.scalars().first()
 
 
-async def get_documents_in_folder(folder: Folder, db: AsyncSession) -> list[Document]:
+async def get_documents_in_folder(
+    folder: Folder, db: AsyncSession, drill: bool = False
+) -> list[Document]:
     """
     Retrieves all Document ORM instances in a given folder.
 
@@ -370,8 +356,26 @@ async def get_documents_in_folder(folder: Folder, db: AsyncSession) -> list[Docu
     Returns:
         list[Document]: List of Document ORM instances in the folder.
     """
-    result = await db.execute(select(Document).where(Document.folder_id == folder.id))
-    return result.scalars().all()
+    documents = []
+    if drill:
+        # Get documents in the current folder
+        result = await db.execute(
+            select(Document).where(Document.folder_id == folder.id)
+        )
+        documents.extend(result.scalars().all())
+
+        # Recursively get documents in subfolders
+        subfolders = await get_subfolders_in_folder(folder, db)
+        for subfolder in subfolders:
+            documents.extend(
+                await get_documents_in_folder(subfolder, db, drill=True)
+            )
+    else:
+        result = await db.execute(
+            select(Document).where(Document.folder_id == folder.id)
+        )
+        documents.extend(result.scalars().all())
+    return documents
 
 
 async def get_subfolders_in_folder(folder: Folder, db: AsyncSession) -> list[Folder]:
@@ -387,3 +391,27 @@ async def get_subfolders_in_folder(folder: Folder, db: AsyncSession) -> list[Fol
     """
     result = await db.execute(select(Folder).where(Folder.parent_id == folder.id))
     return result.scalars().all()
+
+
+async def download_files_from_dropbox(
+    dropbox_client: Dropbox, dropbox_paths: list[str], tmp_dir: Path
+) -> list[Path]:
+    """
+    Downloads multiple files from Dropbox and returns their contents as a list of strings.
+
+    Args:
+        dropbox_client (Dropbox): Authenticated Dropbox client.
+        dropbox_paths (list[str]): List of Dropbox file paths.
+        tmp_dir (Path): Temporary directory to save downloaded files.
+
+    Returns:
+        list[str]: List of file contents as strings.
+    """
+    download_paths = []
+    for dropbox_path in dropbox_paths:
+        download_path = str(tmp_dir / Path(dropbox_path).name)
+        download_paths.append(download_path)
+        # TODO: chunk download if file is large
+        await run_in_threadpool(dropbox_client.files_download_to_file, download_path, dropbox_path)
+
+    return download_paths

@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     DEFAULT_USER_NAME: str = "default_user"
 
     # File read chunk size (in bytes) when processing large files
-    FILE_READ_CHUNK_SIZE: int = 1024 * 1024  # 1 MB
+    ZIP_FILE_READ_CHUNK_SIZE: int = 1024 * 1024  # 1 MB
 
     # Model name for classification
     CLASSIFICATION_MODEL_NAME: str = "distilbert-base-uncased-finetuned-sst-2-english"

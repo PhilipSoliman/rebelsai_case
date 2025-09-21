@@ -20,6 +20,10 @@ dependencies = [
     "aiofiles",
     "transformers",
     "huggingface_hub[hf_xet]",
+    "PyPDF2",
+    "python-docx",
+    "bs4",
+    "striprtf"
 ]
 
 [tool.setuptools.packages.find]

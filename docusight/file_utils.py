@@ -1,4 +1,4 @@
-import asyncio
+import csv
 import os
 import shutil
 import uuid
@@ -7,11 +7,15 @@ from pathlib import Path
 from typing import Optional
 
 import aiofiles
+import PyPDF2
+from bs4 import BeautifulSoup
+from docx import Document as DocxDocument
 from dropbox import Dropbox, files
 from fastapi import HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from striprtf.striprtf import rtf_to_text
 
 from docusight.config import settings
 from docusight.logging import logger
@@ -36,30 +40,38 @@ async def add_zipped_folder_to_database(
     Returns:
         Folder: The Folder ORM instance added to the database.
     """
+    # construct temp paths
     tmp_dir = Path(settings.TEMP_DIR) / settings.DEFAULT_USER_NAME
     os.makedirs(tmp_dir, exist_ok=True)
     tmp_zipped_folder_path = Path(tmp_dir) / zipped_folder.filename
     tmp_client_dir = tmp_zipped_folder_path.with_suffix("")  # folder name without .zip
 
+    # extract zip to temp directory
     await write_zip_in_chunks(zipped_folder, tmp_zipped_folder_path)
     await run_in_threadpool(extract_zip, tmp_zipped_folder_path)
     await delete_zipfile(tmp_zipped_folder_path)
 
-    file_paths = []
-    folder = await add_folder_to_database(
-        tmp_client_dir, tmp_dir, db, drill, file_paths=file_paths
-    )
+    # convert files to plain text (+ overwrite paths)
+    tmp_client_paths = [Path(p) for p in tmp_client_dir.rglob("*.*")]
+    tmp_client_paths = await convert_files_to_plain_text(tmp_client_paths)
 
-    if file_paths:
-        dropbox_paths = await upload_files_to_dropbox(request, file_paths, tmp_dir)
+    # add folder to database
+    folder = await add_folder_to_database(tmp_client_dir, tmp_dir, db, drill)
 
-    for relative_path, dropbox_path in dropbox_paths.items():
-        document = await get_document_by_path(str(relative_path), db)
+    # upload plain text paths to dropbox
+    if tmp_client_paths:
+        dropbox_paths = await upload_files_to_dropbox(
+            request, tmp_client_paths, tmp_dir
+        )
+    for local_path, dropbox_path in dropbox_paths.items():
+        document = await get_document_by_path(str(local_path), db)
         if document:
             document.dropbox_path = dropbox_path
             db.add(document)
 
+    # remove temp client directory
     await run_in_threadpool(shutil.rmtree, tmp_client_dir)
+
     return folder
 
 
@@ -84,7 +96,7 @@ async def write_zip_in_chunks(upload_file: UploadFile, dest_path: Path):
     """
     with open(dest_path, "wb") as f:
         while True:
-            chunk = await upload_file.read(settings.FILE_READ_CHUNK_SIZE)
+            chunk = await upload_file.read(settings.ZIP_FILE_READ_CHUNK_SIZE)
             if not chunk:
                 break
             f.write(chunk)
@@ -101,12 +113,102 @@ def extract_zip(tmp_zipped_folder_path: Path):
         zip_ref.extractall(tmp_zipped_folder_path.parent)
 
 
+async def convert_files_to_plain_text(paths: list[Path]) -> list[Path]:
+    """
+    Converts multiple files to plain text if supported. Deletes old files and saves plain text versions.
+
+    Supported types: .txt, .docx, .pdf, .csv, .rtf, .html
+    """
+    plain_text_paths = []
+    for path in paths:
+        text = await file_to_plain_text(path)
+
+        if text is not None:
+            plain_text_path = path.with_suffix(".txt")
+            plain_text_paths.append(plain_text_path)
+            async with aiofiles.open(
+                plain_text_path, "w", encoding="utf-8", errors="replace"
+            ) as f:
+                await f.write(text)
+            await run_in_threadpool(path.unlink)
+    return plain_text_paths
+
+
+async def file_to_plain_text(path: Path) -> Optional[str]:
+    """
+    Converts a file to plain text if supported. Returns None if not supported or conversion fails.
+
+    Supported types: .txt, .docx, .pdf, .csv, .rtf, .html
+    """
+    ext = path.suffix.lower()
+    try:
+        if ext == ".txt":
+            async with aiofiles.open(
+                path, "r", encoding="utf-8", errors="replace"
+            ) as f:
+                return await f.read()
+        elif ext == ".docx":
+
+            def read_docx(p):
+                doc = DocxDocument(str(p))
+                return "\n".join([para.text for para in doc.paragraphs])
+
+            return await run_in_threadpool(read_docx, path)
+        elif ext == ".pdf":
+
+            def read_pdf(p):
+                text = ""
+                with open(p, "rb") as f:
+                    reader = PyPDF2.PdfReader(f)
+                    for page in reader.pages:
+                        text += page.extract_text() or ""
+                return text
+
+            return await run_in_threadpool(read_pdf, path)
+        elif ext == ".csv":
+            async with aiofiles.open(
+                path, "r", encoding="utf-8", errors="replace"
+            ) as f:
+                content = await f.read()
+
+            def parse_csv(data):
+                lines = []
+                for row in csv.reader(data.splitlines()):
+                    lines.append(",".join(row))
+                return "\n".join(lines)
+
+            return await run_in_threadpool(parse_csv, content)
+        elif ext in [".htm", ".html"]:
+            async with aiofiles.open(
+                path, "r", encoding="utf-8", errors="replace"
+            ) as f:
+                html = await f.read()
+
+            def parse_html(data):
+                soup = BeautifulSoup(data, "html.parser")
+                return soup.get_text()
+
+            return await run_in_threadpool(parse_html, html)
+        elif ext == ".rtf":
+            async with aiofiles.open(
+                path, "r", encoding="utf-8", errors="replace"
+            ) as f:
+                rtf = await f.read()
+            return await run_in_threadpool(rtf_to_text, rtf)
+        else:
+            # unsupported type
+            return None
+    except Exception as e:
+        logger.error(f"Error converting file {path}: {e}")
+        return None
+
+
 async def add_folder_to_database(
     current_dir: Path,
     tmp_dir: Path,
     db: AsyncSession,
     drill: bool,
-    file_paths: list[Path],
+    # file_paths: list[Path],
     parent_folder: Optional[Folder] = None,
 ) -> Folder:
     """
@@ -133,7 +235,7 @@ async def add_folder_to_database(
     for file in os.listdir(current_dir):
         file_path = Path(current_dir) / file
         if file_path.is_file():
-            file_paths.append(file_path)
+            # file_paths.append(file_path)
             stats = file_path.stat()
             document = Document(
                 folder=folder,
@@ -156,7 +258,7 @@ async def add_folder_to_database(
                     tmp_dir,
                     db,
                     drill,
-                    file_paths=file_paths,
+                    # file_paths=file_paths,
                     parent_folder=folder,
                 )
     return folder
@@ -212,26 +314,21 @@ async def upload_files_to_dropbox(
             )
 
             # Append the rest of the chunks using aiofiles for async file I/O
-            #TODO: convert to plain text files before upload
             cursor = files.UploadSessionCursor(session_id=session_id, offset=0)
             async with aiofiles.open(file_path, "rb") as file:
-                while True:
-                    chunk = await file.read(settings.FILE_READ_CHUNK_SIZE)
-                    if not chunk:
-                        await run_in_threadpool(
-                            dropbox_client.files_upload_session_append_v2,
-                            b"",
-                            cursor,
-                            close=True,
-                        )
-                        break
-                    await run_in_threadpool(
-                        dropbox_client.files_upload_session_append_v2,
-                        chunk,
-                        cursor,
-                    )
-                    # offset += len(chunk)
-                    cursor.offset += len(chunk)
+                content = await file.read()
+                await run_in_threadpool(
+                    dropbox_client.files_upload_session_append_v2,
+                    content,
+                    cursor,
+                )
+                cursor.offset += len(content)
+            await run_in_threadpool(
+                dropbox_client.files_upload_session_append_v2,
+                b"",
+                cursor,
+                close=True,
+            )
 
             # Save entry for batch finish
             commit = files.CommitInfo(path=dropbox_path)
@@ -367,9 +464,7 @@ async def get_documents_in_folder(
         # Recursively get documents in subfolders
         subfolders = await get_subfolders_in_folder(folder, db)
         for subfolder in subfolders:
-            documents.extend(
-                await get_documents_in_folder(subfolder, db, drill=True)
-            )
+            documents.extend(await get_documents_in_folder(subfolder, db, drill=True))
     else:
         result = await db.execute(
             select(Document).where(Document.folder_id == folder.id)
@@ -412,6 +507,10 @@ async def download_files_from_dropbox(
         download_path = str(tmp_dir / Path(dropbox_path).name)
         download_paths.append(download_path)
         # TODO: chunk download if file is large
-        await run_in_threadpool(dropbox_client.files_download_to_file, download_path, dropbox_path)
+        await run_in_threadpool(
+            dropbox_client.files_download_to_file, download_path, dropbox_path
+        )
 
+    return download_paths
+    return download_paths
     return download_paths

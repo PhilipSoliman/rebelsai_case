@@ -17,7 +17,9 @@ dependencies = [
     "aiosqlite",
     "dropbox",
     "pydantic-settings",
-    "aiofiles"
+    "aiofiles",
+    "transformers",
+    "huggingface_hub[hf_xet]",
 ]
 
 [tool.setuptools.packages.find]

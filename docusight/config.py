@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import torch
 from pydantic_settings import BaseSettings
 
 
@@ -38,11 +39,22 @@ class Settings(BaseSettings):
     # File read chunk size (in bytes) when processing large files
     FILE_READ_CHUNK_SIZE: int = 1024 * 1024  # 1 MB
 
+    # Model name for classification
+    CLASSIFICATION_MODEL_NAME: str = "distilbert-base-uncased-finetuned-sst-2-english"
+
+    # GPU device
+    GPU_DEVICE: int = 0 if torch.cuda.is_available() else -1
+
+    # Classification batch size
+    CLASSIFICATION_BATCH_SIZE: int = 16
+
     class Config:
         env_file = "../.env"  # relative to config.py
 
+
 # Create a single instance to import everywhere
 settings = Settings()
+
 
 # Check dropbox token
 def is_dropbox_token_set() -> bool:

@@ -1,7 +1,18 @@
-from docusight.config import settings
 from dropbox import Dropbox
+from fastapi import FastAPI
 
-def cleanup_dropbox_files(app):
+from docusight.config import is_dropbox_token_set, settings
+
+
+def setup_dropbox_client(app: FastAPI) -> Dropbox:
+    if not is_dropbox_token_set():
+        raise RuntimeError(
+            "Dropbox access token is not set. Please update your .env file."
+        )
+    app.state.dropbox = Dropbox(settings.DROPBOX_ACCESS_TOKEN)
+
+
+def cleanup_dropbox_files(app: FastAPI):
     dropbox_client: Dropbox = app.state.dropbox
     try:
         # List all files in the upload directory
@@ -16,4 +27,4 @@ def cleanup_dropbox_files(app):
                 if hasattr(entry, "path_display"):
                     dropbox_client.files_delete_v2(entry.path_display)
     except Exception as e:
-        print(f"Error deleting Dropbox files in {settings.UPLOAD_DIR.as_posix()}: {e}")
+        print(f"Error deleting Dropbox files in {settings.UPLOAD_DIR}: {e}")

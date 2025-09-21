@@ -1,9 +1,8 @@
 import io
 import sys
 
-import torch
 from fastapi import FastAPI
-from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
+from transformers import RobertaForSequenceClassification, RobertaTokenizer, pipeline
 
 from docusight.config import settings
 from docusight.logging import logger
@@ -14,8 +13,8 @@ def setup_pipeline(app: FastAPI):
     old_stdout = sys.stdout
     sys.stdout = stdout_buffer
     try:
-        tokenizer = AutoTokenizer.from_pretrained(settings.CLASSIFICATION_MODEL_NAME)
-        model = AutoModelForSequenceClassification.from_pretrained(
+        tokenizer = RobertaTokenizer.from_pretrained(settings.CLASSIFICATION_MODEL_NAME)
+        model = RobertaForSequenceClassification.from_pretrained(
             settings.CLASSIFICATION_MODEL_NAME
         )
 
@@ -26,7 +25,7 @@ def setup_pipeline(app: FastAPI):
             device=settings.GPU_DEVICE,
         )
 
-        # # pre-compile model for faster inference (PyTorch 2.0+, CUDA > 7.0)
+        # # TODO: pre-compile model for faster inference (PyTorch 2.0+, CUDA > 7.0)
         # model = torch.compile(model)
         # sentiment_classifier.model = model
 

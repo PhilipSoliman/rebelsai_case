@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     ZIP_FILE_READ_CHUNK_SIZE: int = 1024 * 1024  # 1 MB
 
     # Model name for classification TODO: Find dutch sentiment analysis model
-    CLASSIFICATION_MODEL_NAME: str = "pdelobelle/robbert-v2-dutch-sentiment"
+    CLASSIFICATION_MODEL_NAME: str = "DTAI-KULeuven/robbert-v2-dutch-sentiment"
 
     # GPU device
     GPU_DEVICE: int = 0 if torch.cuda.is_available() else -1

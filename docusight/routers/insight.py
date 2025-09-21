@@ -24,12 +24,17 @@ router = APIRouter(
 class DocumentResponseModel(BaseModel):
     id: int
     path: str
-    dropbox_path: Optional[str] = None
+
+    # original file meta
     folder_id: int
     filename: str
     size: int
     created: float
     modified: float
+
+    # dropbox meta
+    dropbox_path: Optional[str] = None
+    plain_text_size: Optional[int] = None
 
 
 def generate_document_response(document: Document) -> DocumentResponseModel:
@@ -45,12 +50,13 @@ def generate_document_response(document: Document) -> DocumentResponseModel:
     return DocumentResponseModel(
         id=document.id,
         path=document.path,
-        dropbox_path=document.dropbox_path,
         folder_id=document.folder_id,
         filename=document.filename,
         size=document.size,
         created=document.created,
         modified=document.modified,
+        dropbox_path=document.dropbox_path,
+        plain_text_size=document.plain_text_size,
     )
 
 

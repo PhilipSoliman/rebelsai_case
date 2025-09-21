@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Integer, String, Float
+from sqlalchemy import Column, Float, ForeignKey, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
@@ -26,12 +26,17 @@ class Document(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     folder_id = Column(Integer, ForeignKey("folders.id"))
+
+    # original file meta
     filename = Column(String, index=True)
     path = Column(String)
-    dropbox_path = Column(String, nullable=True)
     size = Column(Integer)
     created = Column(Float)
     modified = Column(Float)
+
+    # dropbox meta
+    dropbox_path = Column(String, nullable=True)
+    plain_text_size = Column(Integer, nullable=True)
 
     # Relationships to Folder and Classification
     folder = relationship("Folder", back_populates="documents")

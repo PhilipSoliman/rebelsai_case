@@ -23,12 +23,18 @@ from docusight.models import Document, Folder
 
 
 class MetaDict(dict):
+    filename: str
+    path: str
     size: int
     created: float
     modified: float
 
-    def __init__(self, size: int, created: float, modified: float):
-        super().__init__(size=size, created=created, modified=modified)
+    def __init__(
+        self, filename: str, path: str, size: int, created: float, modified: float
+    ):
+        super().__init__(
+            filename=filename, path=path, size=size, created=created, modified=modified
+        )
 
     def __getattr__(self, item):
         return self[item]
@@ -65,17 +71,24 @@ async def add_zipped_folder_to_database(
 
     # convert files to plain text (+ overwrite paths)
     tmp_client_paths = [Path(p) for p in tmp_client_dir.rglob("*.*")]
-    tmp_client_txt_file_map = await convert_files_to_plain_text(tmp_client_paths)
+    tmp_client_txt_file_map = await convert_files_to_plain_text(
+        tmp_client_paths, tmp_dir
+    )
 
     # add folder to database
-    folder = await add_folder_to_database(tmp_client_dir, tmp_dir, db, drill, tmp_client_txt_file_map)
+    folder = await add_folder_to_database(
+        tmp_client_dir, tmp_dir, db, drill, tmp_client_txt_file_map
+    )
 
     # upload plain text paths to dropbox
+    tmp_client_txt_files = list(tmp_client_txt_file_map.keys())
     dropbox_paths = await upload_files_to_dropbox(
-        request, tmp_client_txt_file_map.keys(), tmp_dir
+        request, tmp_client_txt_files, tmp_dir
     )
-    for local_path, dropbox_path in dropbox_paths.items():
-        document = await get_document_by_path(str(local_path), db)
+    for relative_path, dropbox_path in dropbox_paths.items():
+        local_txt_path = tmp_dir / relative_path
+        original_meta = tmp_client_txt_file_map.get(local_txt_path)
+        document = await get_document_by_path(str(original_meta.path), db)
         if document:
             document.dropbox_path = dropbox_path
             db.add(document)
@@ -124,7 +137,9 @@ def extract_zip(tmp_zipped_folder_path: Path):
         zip_ref.extractall(tmp_zipped_folder_path.parent)
 
 
-async def convert_files_to_plain_text(paths: list[Path]) -> dict[Path, MetaDict]:
+async def convert_files_to_plain_text(
+    paths: list[Path], tmp_dir: Path
+) -> dict[Path, MetaDict]:
     """
     Converts multiple files to plain text if supported. Deletes old files and saves plain text versions.
 
@@ -142,6 +157,8 @@ async def convert_files_to_plain_text(paths: list[Path]) -> dict[Path, MetaDict]
         if text is not None:
             original_stats = path.stat()
             original_meta = MetaDict(
+                filename=path.name,
+                path=str(path.relative_to(tmp_dir)),
                 size=original_stats.st_size,
                 created=original_stats.st_ctime,
                 modified=original_stats.st_mtime,
@@ -257,13 +274,13 @@ async def add_folder_to_database(
     for file in os.listdir(current_dir):
         file_path = Path(current_dir) / file
         if file_path.is_file():
-            original_meta = original_file_map.pop(file_path)
+            original_meta = original_file_map[file_path]
             document = Document(
                 folder=folder,
-                filename=file,
-                path=str(file_path.relative_to(tmp_dir)),
-                dropbox_path=None,  # to be updated after upload
+                # path=str(file_path.relative_to(tmp_dir)),
                 **original_meta,
+                dropbox_path=None,  # to be updated after upload
+                plain_text_size=file_path.stat().st_size,
             )
             db.add(document)
 
@@ -355,7 +372,7 @@ async def upload_files_to_dropbox(
             entries.append(finish_arg)
 
             # Save metadata for response
-            dropbox_paths[str(relative_path)] = dropbox_path
+            dropbox_paths[relative_path] = dropbox_path
 
         # Finish all sessions in one batch
         finish_batch_result: files.UploadSessionFinishBatchResult = (

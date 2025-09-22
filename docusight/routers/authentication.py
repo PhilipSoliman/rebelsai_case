@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from docusight.dropbox import get_auth_flow
 
-prefix = "authentication"
+prefix = "/authentication"
 router = APIRouter(
     prefix=prefix,
     tags=["Authentication"],

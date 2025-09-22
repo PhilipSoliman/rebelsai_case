@@ -4,7 +4,7 @@ from fastapi import FastAPI
 
 from docusight.classifier_pipeline import setup_pipeline
 from docusight.database import create_tables, drop_tables
-from docusight.dropbox import cleanup_dropbox_files, setup_dropbox_client
+from docusight.dropbox import cleanup_dropbox_files
 from docusight.models import *  # ensures all models are declared before creating tables
 from docusight.routers.authentication import router as authentication_router
 from docusight.routers.classification import router as classification_router

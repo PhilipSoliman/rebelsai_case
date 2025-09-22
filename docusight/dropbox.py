@@ -3,7 +3,7 @@ from dropbox.oauth import DropboxOAuth2Flow
 from fastapi import FastAPI
 from httpcore import request
 
-from docusight.config import is_dropbox_token_set, settings
+from docusight.config import settings
 
 
 # def setup_dropbox_client(app: FastAPI) -> Dropbox:

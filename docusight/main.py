@@ -1,14 +1,12 @@
 from contextlib import asynccontextmanager
 
-from dropbox import Dropbox
 from fastapi import FastAPI
-from transformers import pipeline
 
 from docusight.classifier_pipeline import setup_pipeline
-from docusight.config import is_dropbox_token_set
 from docusight.database import create_tables, drop_tables
 from docusight.dropbox import cleanup_dropbox_files, setup_dropbox_client
 from docusight.models import *  # ensures all models are declared before creating tables
+from docusight.routers.authentication import router as authentication_router
 from docusight.routers.classification import router as classification_router
 from docusight.routers.insight import router as insight_router
 
@@ -17,8 +15,6 @@ from docusight.routers.insight import router as insight_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # STARTUP #
-    setup_dropbox_client(app)
-
     await create_tables()
 
     setup_pipeline(app)
@@ -43,5 +39,6 @@ app = FastAPI(
 )
 
 # connect routers containing endpoints
+app.include_router(authentication_router)
 app.include_router(insight_router)
 app.include_router(classification_router)

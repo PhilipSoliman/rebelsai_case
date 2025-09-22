@@ -13,7 +13,8 @@ class Settings(BaseSettings):
 
     # Sensitive values (loaded from .env)
     DATABASE_URL: str
-    DROPBOX_ACCESS_TOKEN: str
+    DROPBOX_APP_KEY: str
+    DROPBOX_APP_SECRET: str
 
     # Base directory of the project
     PROJECT_DIR: Path = Path(__file__).resolve().parent.parent
@@ -56,7 +57,7 @@ class Settings(BaseSettings):
 settings = Settings()
 
 
-# Check dropbox token
-def is_dropbox_token_set() -> bool:
-    token = settings.DROPBOX_ACCESS_TOKEN
-    return bool(token) and token != "your_dropbox_token_here"
+# # Check dropbox token
+# def is_dropbox_token_set() -> bool:
+#     token = settings.DROPBOX_ACCESS_TOKEN
+#     return bool(token) and token != "your_dropbox_token_here"

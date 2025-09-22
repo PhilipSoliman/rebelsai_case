@@ -41,9 +41,9 @@ class MetaDict(dict):
 
 
 async def add_zipped_folder_to_database(
-    request: Request,
     zipped_folder: UploadFile,
     db: AsyncSession,
+    dropbox_client: Dropbox,
     drill: bool,
 ) -> Folder:
     """
@@ -83,7 +83,7 @@ async def add_zipped_folder_to_database(
     # upload plain text paths to dropbox
     tmp_client_txt_files = list(tmp_client_txt_file_map.keys())
     dropbox_paths = await upload_files_to_dropbox(
-        request, tmp_client_txt_files, tmp_dir
+        dropbox_client, tmp_client_txt_files, tmp_dir
     )
     for relative_path, dropbox_path in dropbox_paths.items():
         local_txt_path = tmp_dir / relative_path
@@ -301,7 +301,7 @@ async def add_folder_to_database(
 
 
 async def upload_files_to_dropbox(
-    request: Request, file_paths: list[Path], tmp_dir: Path
+    dropbox_client: Dropbox, file_paths: list[Path], tmp_dir: Path
 ) -> tuple[dict, files.UploadSessionFinishBatchResult]:
     """
     Uploads multiple files to Dropbox using upload sessions, chunking each file and finishing all sessions in a batch.
@@ -316,8 +316,6 @@ async def upload_files_to_dropbox(
             - dict mapping relative file paths to Dropbox paths
             - Dropbox batch result object
     """
-    dropbox_client: Dropbox = request.app.state.dropbox
-
     try:
         dropbox_paths = {}
         entries: list[files.UploadSessionFinishArg] = []
@@ -547,7 +545,4 @@ async def download_files_from_dropbox(
             dropbox_client.files_download_to_file, download_path, dropbox_path
         )
 
-    return download_paths
-    return download_paths
-    return download_paths
     return download_paths

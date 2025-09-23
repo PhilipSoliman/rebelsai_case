@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import torch
+from pydantic import ConfigDict
 from pydantic_settings import BaseSettings
 
 
@@ -53,8 +54,7 @@ class Settings(BaseSettings):
     # Classification batch size
     CLASSIFICATION_BATCH_SIZE: int = 16
 
-    class Config:
-        env_file = "../.env"  # relative to config.py
+    model_config = ConfigDict(env_file="../.env")
 
 
 # Create a single instance to import everywhere

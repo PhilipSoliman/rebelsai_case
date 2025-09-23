@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Float, ForeignKey, Integer, String
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
@@ -10,13 +10,20 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
+    display_name = Column(String, nullable=False)
+    email = Column(String, nullable=False)
     dropbox_account_id = Column(String, unique=True, nullable=False)
     dropbox_access_token = Column(String, nullable=False)
+    dropbox_refresh_token = Column(String, nullable=False)
+    dropbox_access_token_expiration = Column(DateTime, nullable=True)
 
     # Relationships
     folders = relationship("Folder", back_populates="user")
     documents = relationship("Document", back_populates="user")
     classifications = relationship("Classification", back_populates="user")
+
+    def __repr__(self): # NOTE: used for logging purposes
+        return f"User(id={self.id}, email={self.email}, dropbox_account_id={self.dropbox_account_id})"
 
 
 class Folder(Base):

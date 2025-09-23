@@ -11,7 +11,7 @@ import PyPDF2
 from bs4 import BeautifulSoup
 from docx import Document as DocxDocument
 from dropbox import Dropbox, files
-from fastapi import HTTPException, Request, UploadFile
+from fastapi import HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -19,7 +19,7 @@ from striprtf.striprtf import rtf_to_text
 
 from docusight.config import settings
 from docusight.logging import logger
-from docusight.models import Document, Folder
+from docusight.models import Document, Folder, User
 
 
 class MetaDict(dict):
@@ -44,6 +44,7 @@ async def add_zipped_folder_to_database(
     zipped_folder: UploadFile,
     db: AsyncSession,
     dropbox_client: Dropbox,
+    user: User,
     drill: bool,
 ) -> Folder:
     """
@@ -59,44 +60,71 @@ async def add_zipped_folder_to_database(
         Folder: The Folder ORM instance added to the database.
     """
     # construct temp paths
-    tmp_dir = Path(settings.TEMP_DIR) / settings.DEFAULT_USER_NAME
+    tmp_dir = generate_tmp_dir(user)
     os.makedirs(tmp_dir, exist_ok=True)
-    tmp_zipped_folder_path = Path(tmp_dir) / zipped_folder.filename
-    tmp_client_dir = tmp_zipped_folder_path.with_suffix("")  # folder name without .zip
+    try:
+        tmp_zipped_folder_path = Path(tmp_dir) / zipped_folder.filename
+        tmp_client_dir = tmp_zipped_folder_path.with_suffix(
+            ""
+        )  # folder name without .zip
 
-    # extract zip to temp directory
-    await write_zip_in_chunks(zipped_folder, tmp_zipped_folder_path)
-    await run_in_threadpool(extract_zip, tmp_zipped_folder_path)
-    await delete_zipfile(tmp_zipped_folder_path)
+        # extract zip to temp directory
+        await write_zip_in_chunks(zipped_folder, tmp_zipped_folder_path)
+        await run_in_threadpool(extract_zip, tmp_zipped_folder_path)
+        await delete_zipfile(tmp_zipped_folder_path)
 
-    # convert files to plain text (+ overwrite paths)
-    tmp_client_paths = [Path(p) for p in tmp_client_dir.rglob("*.*")]
-    tmp_client_txt_file_map = await convert_files_to_plain_text(
-        tmp_client_paths, tmp_dir
-    )
+        # convert files to plain text (+ overwrite paths)
+        tmp_client_paths = [Path(p) for p in tmp_client_dir.rglob("*.*")]
+        tmp_client_txt_file_map = await convert_files_to_plain_text(
+            tmp_client_paths, tmp_dir
+        )
 
-    # add folder to database
-    folder = await add_folder_to_database(
-        tmp_client_dir, tmp_dir, db, drill, tmp_client_txt_file_map
-    )
+        # add folder to database
+        folder = await add_folder_to_database(
+            current_dir=tmp_client_dir,
+            tmp_dir=tmp_dir,
+            db=db,
+            user_id=user.id,
+            drill=drill,
+            original_file_map=tmp_client_txt_file_map,
+        )
 
-    # upload plain text paths to dropbox
-    tmp_client_txt_files = list(tmp_client_txt_file_map.keys())
-    dropbox_paths = await upload_files_to_dropbox(
-        dropbox_client, tmp_client_txt_files, tmp_dir
-    )
-    for relative_path, dropbox_path in dropbox_paths.items():
-        local_txt_path = tmp_dir / relative_path
-        original_meta = tmp_client_txt_file_map.get(local_txt_path)
-        document = await get_document_by_path(str(original_meta.path), db)
-        if document:
-            document.dropbox_path = dropbox_path
-            db.add(document)
+        # upload plain text paths to dropbox
+        tmp_client_txt_files = list(tmp_client_txt_file_map.keys())
+        dropbox_paths = await upload_files_to_dropbox(
+            dropbox_client, tmp_client_txt_files, tmp_dir
+        )
+        for relative_path, dropbox_path in dropbox_paths.items():
+            local_txt_path = tmp_dir / relative_path
+            original_meta = tmp_client_txt_file_map.get(local_txt_path)
+            document = await get_document_by_path(str(original_meta.path), db, user)
+            if document:
+                document.dropbox_path = dropbox_path
+                db.add(document)
 
-    # remove temp client directory
-    await run_in_threadpool(shutil.rmtree, tmp_client_dir)
+        # remove temp client directory
+        await run_in_threadpool(shutil.rmtree, tmp_client_dir)
 
+    except Exception as e:
+        logger.error(f"Error adding zipped folder to database: {e}")
+        await run_in_threadpool(shutil.rmtree, tmp_client_dir)
+        raise HTTPException(
+            status_code=500, detail="Failed to process and add zipped folder"
+        )
     return folder
+
+
+def generate_tmp_dir(user: User) -> Path:
+    """
+    Generates a temporary directory path for a user based on their ID and display name.
+    Args:
+        user (User): The User ORM instance.
+    Returns:
+        Path: The generated temporary directory path.
+    """
+    user_name: str = user.display_name
+    user_name_fmt = user_name.lower().replace(" ", "_")
+    return Path(settings.TEMP_DIR) / f"{user.id}_{user_name_fmt}"
 
 
 async def delete_zipfile(zip_path: Path):
@@ -246,6 +274,7 @@ async def add_folder_to_database(
     current_dir: Path,
     tmp_dir: Path,
     db: AsyncSession,
+    user_id: int,
     drill: bool,
     original_file_map: dict[Path, MetaDict],
     parent_folder: Optional[Folder] = None,
@@ -268,6 +297,7 @@ async def add_folder_to_database(
         path=str(current_dir.relative_to(tmp_dir)),
         name=current_dir.name,
         parent_id=parent_folder.id if parent_folder else None,
+        user_id=user_id,
     )
     db.add(folder)
     await db.flush()
@@ -277,10 +307,10 @@ async def add_folder_to_database(
             original_meta = original_file_map[file_path]
             document = Document(
                 folder=folder,
-                # path=str(file_path.relative_to(tmp_dir)),
                 **original_meta,
-                dropbox_path=None,  # to be updated after upload
+                dropbox_path=None,  # NOTE: to be updated after upload
                 plain_text_size=file_path.stat().st_size,
+                user_id=user_id,
             )
             db.add(document)
 
@@ -290,11 +320,12 @@ async def add_folder_to_database(
             subfolder_path = Path(current_dir) / subfolder_name
             if subfolder_path.is_dir():
                 _ = await add_folder_to_database(
-                    subfolder_path,
-                    tmp_dir,
-                    db,
-                    drill,
-                    original_file_map,
+                    current_dir=subfolder_path,
+                    tmp_dir=tmp_dir,
+                    db=db,
+                    user_id=user_id,
+                    drill=drill,
+                    original_file_map=original_file_map,
                     parent_folder=folder,
                 )
     return folder
@@ -343,9 +374,7 @@ async def upload_files_to_dropbox(
                 "." + file_path.name.split(".")[-1] if "." in file_path.name else ""
             )
             dropbox_filename = f"{file_id}{file_ext}"
-            dropbox_path = (
-                f"{settings.UPLOAD_DIR}/{settings.DEFAULT_USER_NAME}/{dropbox_filename}"
-            )
+            dropbox_path = f"{settings.UPLOAD_DIR}/{dropbox_filename}"
 
             # Append the rest of the chunks using aiofiles for async file I/O
             cursor = files.UploadSessionCursor(session_id=session_id, offset=0)
@@ -400,36 +429,9 @@ async def upload_files_to_dropbox(
     return dropbox_paths
 
 
-async def get_folder_by_segments(
-    segments: list[str], db: AsyncSession
+async def get_folder_by_path(
+    path: str, db: AsyncSession, user: User
 ) -> Optional[Folder]:
-    """
-    Retrieves a Folder ORM instance by its path segments from the database.
-
-    Args:
-        segments (list[str]): List of path segments representing the folder hierarchy.
-        db (AsyncSession): Database session.
-
-    Returns:
-        Optional[Folder]: The Folder ORM instance, or None if not found.
-    """
-    parent_id = None
-    folder = None
-    for segment in segments:
-        # only search parent folder
-        query = select(Folder).where(Folder.parent_id == parent_id)
-
-        # search for the folder by name
-        query = query.where(Folder.name == segment)
-        result = await db.execute(query)
-        folder = result.scalars().first()
-        if not folder:
-            return None
-        parent_id = folder.id
-    return folder
-
-
-async def get_folder_by_path(path: str, db: AsyncSession) -> Optional[Folder]:
     """
     Retrieves a Folder ORM instance by its path from the database.
 
@@ -441,10 +443,12 @@ async def get_folder_by_path(path: str, db: AsyncSession) -> Optional[Folder]:
         Optional[Folder]: The Folder ORM instance, or None if not found.
     """
     segments = Path(path).parts
-    return await get_folder_by_segments(segments, db)
+    return await get_folder_by_segments(segments, db, user)
 
 
-async def get_document_by_path(path: str, db: AsyncSession) -> Optional[Document]:
+async def get_document_by_path(
+    path: str, db: AsyncSession, user: User
+) -> Optional[Document]:
     """
     Retrieves a Document ORM instance by its path from the database.
 
@@ -461,7 +465,7 @@ async def get_document_by_path(path: str, db: AsyncSession) -> Optional[Document
 
     # get parent folder of document
     *folder_segments, filename = segments
-    folder = await get_folder_by_segments(folder_segments, db)
+    folder = await get_folder_by_segments(folder_segments, db, user)
     if not folder:
         raise HTTPException(status_code=404, detail="Document folder not found")
 
@@ -472,6 +476,37 @@ async def get_document_by_path(path: str, db: AsyncSession) -> Optional[Document
         )
     )
     return result.scalars().first()
+
+
+async def get_folder_by_segments(
+    segments: list[str], db: AsyncSession, user: User
+) -> Optional[Folder]:
+    """
+    Retrieves a Folder ORM instance by its path segments from the database.
+
+    Args:
+        segments (list[str]): List of path segments representing the folder hierarchy.
+        db (AsyncSession): Database session.
+
+    Returns:
+        Optional[Folder]: The Folder ORM instance, or None if not found.
+    """
+    parent_id = None
+    folder = None
+    for segment in segments:
+        # only search parent folder
+        query = select(Folder).where(
+            Folder.parent_id == parent_id, Folder.user_id == user.id
+        )
+
+        # search for the folder by name
+        query = query.where(Folder.name == segment)
+        result = await db.execute(query)
+        folder = result.scalars().first()
+        if not folder:
+            return None
+        parent_id = folder.id
+    return folder
 
 
 async def get_documents_in_folder(

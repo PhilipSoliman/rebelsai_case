@@ -1,16 +1,17 @@
 import urllib.parse
+from datetime import datetime
 from typing import Optional
 
 from dropbox import Dropbox
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 
 from docusight.config import settings
 from docusight.database import get_db
 from docusight.dropbox import get_auth_flow
 from docusight.models import User
-from datetime import datetime
 
 # NOTE: do not change this prefix as it is used in OAuth redirect URIs
 router = APIRouter(
@@ -38,7 +39,6 @@ class DropboxAuthCallbackResponseModel(BaseModel):
 async def dropbox_auth(request: Request):
     from fastapi.concurrency import run_in_threadpool
 
-    print("Cookies:", dict(request.cookies))
     auth_flow = get_auth_flow(request.base_url, request.session)
     authorize_url = await run_in_threadpool(auth_flow.start)
     return DropboxAuthURLResponseModel(auth_url=authorize_url)
@@ -56,7 +56,6 @@ async def dropbox_callback(
     from fastapi.concurrency import run_in_threadpool
 
     try:
-        print("Cookies:", dict(request.cookies))
         auth_flow = get_auth_flow(request.base_url, request.session)
 
         # Decode incoming OAuth parameters
@@ -86,17 +85,30 @@ async def dropbox_callback(
         # Store account ID in session
         request.session[settings.DROPBOX_ACCOUNT_ID_SESSION_KEY] = account_id
 
-        # Store user info in database
-        user = User(
-            display_name=display_name,
-            email=email,
-            dropbox_account_id=account_id,
-            dropbox_access_token=access_token,
-            dropbox_refresh_token=refresh_token,
-            dropbox_access_token_expiration=expires_at,
-            
+        # Check if user already exists
+        existing_user = await db.execute(
+            select(User).where(User.dropbox_account_id == account_id)
         )
-        db.add(user)
+        existing_user = existing_user.scalars().first()
+
+        # update or create user in database
+        if existing_user:
+            user = existing_user
+            user.display_name = display_name
+            user.email = email
+            user.dropbox_access_token = access_token
+            user.dropbox_refresh_token = refresh_token
+            user.dropbox_access_token_expiration = expires_at
+        else:
+            user = User(
+                display_name=display_name,
+                email=email,
+                dropbox_account_id=account_id,
+                dropbox_access_token=access_token,
+                dropbox_refresh_token=refresh_token,
+                dropbox_access_token_expiration=expires_at,
+            )
+            db.add(user)
         await db.commit()
         await db.refresh(user)
 

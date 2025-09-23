@@ -540,7 +540,6 @@ async def download_files_from_dropbox(
     for dropbox_path in dropbox_paths:
         download_path = str(tmp_dir / Path(dropbox_path).name)
         download_paths.append(download_path)
-        # TODO: chunk download if file is large
         await run_in_threadpool(
             dropbox_client.files_download_to_file, download_path, dropbox_path
         )

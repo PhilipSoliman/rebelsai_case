@@ -35,11 +35,11 @@ class Settings(BaseSettings):
     # Upload directory (in dropbox, relative to root)
     UPLOAD_DIR: str = "/uploads"
 
-    # User name place holder TODO: implement user management
-    DEFAULT_USER_NAME: str = "default_user"
-
     # Dropbox authentication redirect URI
     DROPBOX_REDIRECT_URI: str = "authentication/callback"
+
+    # Dropbox account ID key in session
+    DROPBOX_ACCOUNT_ID_SESSION_KEY: str = "dropbox_account_id"
 
     # File read chunk size (in bytes) when processing large files
     ZIP_FILE_READ_CHUNK_SIZE: int = 1024 * 1024  # 1 MB

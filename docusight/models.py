@@ -65,7 +65,7 @@ class Document(Base):
     # Relationships to Folder, User, and Classification
     folder = relationship("Folder", back_populates="documents")
     user = relationship("User", back_populates="documents")
-    classifications = relationship("Classification", back_populates="document")
+    classification = relationship("Classification", back_populates="document")
 
 
 class Classification(Base):
@@ -78,5 +78,5 @@ class Classification(Base):
     score = Column(String)
 
     # Relationships to Document and User
-    document = relationship("Document", back_populates="classifications")
+    document = relationship("Document", back_populates="classification")
     user = relationship("User", back_populates="classifications")

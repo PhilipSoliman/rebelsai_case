@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 from transformers import Pipeline
 
 from docusight.config import settings
@@ -19,7 +20,7 @@ from docusight.file_utils import (
     get_folder_by_path,
 )
 from docusight.logging import logger
-from docusight.models import Classification, Document, Folder
+from docusight.models import Classification, Folder
 from docusight.routers.insight import DocumentResponseModel, generate_document_response
 
 router = APIRouter(
@@ -63,17 +64,23 @@ async def classify_folder(
         if not folder:
             raise HTTPException(status_code=404, detail="Folder not found")
 
-        documents: list[Document] = await get_documents_in_folder(
-            folder, db, drill=True
+        # get both classified and unclassified documents
+        unclassified_documents = await get_documents_in_folder(
+            folder, db, drill=True, classified=False
         )
-
-        # download documents from dropbox
-        dropbox_client = await get_dropbox_client(user)
-        dropbox_paths = [doc.dropbox_path for doc in documents if doc.dropbox_path]
-        if not dropbox_paths:
+        classified_documents = await get_documents_in_folder(
+            folder, db, drill=True, classified=True
+        )
+        if unclassified_documents == [] and classified_documents == []:
             raise HTTPException(
-                status_code=400, detail="No documents with Dropbox paths found"
+                status_code=400, detail="No documents in folder to classify"
             )
+
+        # download unclassified documents from dropbox
+        dropbox_client = await get_dropbox_client(user)
+        dropbox_paths = [
+            doc.dropbox_path for doc in unclassified_documents if doc.dropbox_path
+        ]
         os.makedirs(tmp_dir, exist_ok=True)
         local_paths: list[Path] = await download_files_from_dropbox(
             dropbox_client, dropbox_paths, tmp_dir
@@ -98,7 +105,7 @@ async def classify_folder(
             batch_results = await classify_batch(classifier, batch_texts)
 
             # map results back to documents
-            batch_docs = documents[i : i + batch_size]
+            batch_docs = unclassified_documents[i : i + batch_size]
             for doc, res in zip(batch_docs, batch_results):
                 label = res["label"]
                 score = res["score"]
@@ -120,6 +127,14 @@ async def classify_folder(
         for classification in classifications:
             await db.refresh(classification)
 
+        # Add already classified documents to response
+        result = await db.execute(
+            select(Classification).where(
+                Classification.document_id.in_([doc.id for doc in classified_documents])
+            )
+        )
+        classifications.extend(result.scalars().all())
+
         # Prepare responses
         classification_responses = []
         for classification in classifications:
@@ -131,6 +146,7 @@ async def classify_folder(
                 document=generate_document_response(classification.document),
             )
             classification_responses.append(classification_response)
+
         return FolderClassificationResponseModel(
             folder_path=folder.path,
             classified_documents=classification_responses,

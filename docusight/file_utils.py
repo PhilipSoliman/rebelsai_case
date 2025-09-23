@@ -510,7 +510,7 @@ async def get_folder_by_segments(
 
 
 async def get_documents_in_folder(
-    folder: Folder, db: AsyncSession, drill: bool = False
+    folder: Folder, db: AsyncSession, drill: bool = False, classified: bool = False
 ) -> list[Document]:
     """
     Retrieves all Document ORM instances in a given folder.
@@ -523,22 +523,31 @@ async def get_documents_in_folder(
         list[Document]: List of Document ORM instances in the folder.
     """
     documents = []
+    query = select(Document).where(
+        Document.folder_id == folder.id,
+        (
+            Document.classification != None
+            if classified
+            else Document.classification == None
+        ),
+    )
     if drill:
         # Get documents in the current folder
-        result = await db.execute(
-            select(Document).where(Document.folder_id == folder.id)
-        )
-        documents.extend(result.scalars().all())
+        result = await db.execute(query)
 
         # Recursively get documents in subfolders
         subfolders = await get_subfolders_in_folder(folder, db)
         for subfolder in subfolders:
-            documents.extend(await get_documents_in_folder(subfolder, db, drill=True))
+            documents.extend(
+                await get_documents_in_folder(
+                    subfolder, db, drill=True, classified=classified
+                )
+            )
     else:
-        result = await db.execute(
-            select(Document).where(Document.folder_id == folder.id)
-        )
-        documents.extend(result.scalars().all())
+        result = await db.execute(query)
+
+    documents.extend(result.scalars().all())
+
     return documents
 
 

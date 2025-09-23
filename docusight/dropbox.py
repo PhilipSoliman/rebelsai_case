@@ -38,7 +38,10 @@ async def get_dropbox_client(user: User) -> Dropbox:
         )
         await run_in_threadpool(dbx.users_get_current_account)
     except AuthError as e:
-        logger.info(f"Invalid or expired Dropbox access token: {e}.")
+        logger.error(f"Invalid or expired Dropbox access token: {e}.")
+        raise HTTPException(
+            status_code=401, detail=f"Invalid or expired Dropbox access token: {e}."
+        )
     return dbx
 
 

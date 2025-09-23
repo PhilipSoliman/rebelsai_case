@@ -38,10 +38,7 @@ async def lifespan(app: FastAPI):
     await drop_tables()
 
     # Delete all files in Dropbox upload directory
-    cleanup_dropbox_files(app)
-
-    # Delete dropbox client instance
-    app.state.dropbox = None
+    await cleanup_dropbox_files()
 
 
 # Main application instance

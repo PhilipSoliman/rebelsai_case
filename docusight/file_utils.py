@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Optional
 
 import aiofiles
-import PyPDF2
+import pypdf
 from bs4 import BeautifulSoup
 from docx import Document as DocxDocument
 from dropbox import Dropbox, files
@@ -252,7 +252,7 @@ def read_docx(p):
 def read_pdf(p):
     text = ""
     with open(p, "rb") as f:
-        reader = PyPDF2.PdfReader(f)
+        reader = pypdf.PdfReader(f)
         for page in reader.pages:
             text += page.extract_text() or ""
     return text

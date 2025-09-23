@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     DROPBOX_APP_KEY: str
     DROPBOX_APP_SECRET: str
+    SESSION_SECRET_KEY: str
 
     # Base directory of the project
     PROJECT_DIR: Path = Path(__file__).resolve().parent.parent
@@ -36,6 +37,9 @@ class Settings(BaseSettings):
 
     # User name place holder TODO: implement user management
     DEFAULT_USER_NAME: str = "default_user"
+
+    # Dropbox authentication redirect URI
+    DROPBOX_REDIRECT_URI: str = "authentication/callback"
 
     # File read chunk size (in bytes) when processing large files
     ZIP_FILE_READ_CHUNK_SIZE: int = 1024 * 1024  # 1 MB

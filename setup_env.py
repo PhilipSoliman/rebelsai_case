@@ -3,6 +3,7 @@ import re
 import subprocess
 import venv
 from pathlib import Path
+import secrets
 
 # Get the absolute path of the project directory
 PROJECT_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -99,9 +100,11 @@ def generate_default_env():
     if env_path.exists():
         print(f".env file already exists at {env_path}")
         return
-    default_content = """
+    default_content = f"""
 DATABASE_URL=sqlite+aiosqlite:///./rebelsai.db
-DROPBOX_ACCESS_TOKEN=your_dropbox_token_here
+DROPBOX_APP_KEY=your_dropbox_app_key_here
+DROPBOX_APP_SECRET=your_dropbox_app_secret_here
+SESSION_SECRET_KEY={secrets.token_urlsafe(32)}
 """
     env_path.write_text(default_content.strip())
     print(f"Default .env file created at {env_path}")

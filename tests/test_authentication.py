@@ -3,16 +3,20 @@ from datetime import datetime, timedelta
 import pytest
 from httpx import AsyncClient
 from pytest import MonkeyPatch
+from sqlalchemy.future import select
 
 from docusight.dropbox import DropboxOAuth2Flow
+from docusight.models import User
 from docusight.routers.authentication import Dropbox
+from tests.conftest import TEMP_MOCK_USER
 
 
 @pytest.mark.asyncio
+@pytest.mark.order(1)
 async def test_authentication_endpoint(
     async_client_and_db: AsyncClient, monkeypatch: MonkeyPatch
 ):
-    async_client, _ = async_client_and_db
+    async_client, db = async_client_and_db
 
     # Mock DropboxOAuth2Flow and Dropbox methods
     monkeypatch.setattr(DropboxOAuth2Flow, "start", mock_start)
@@ -40,6 +44,13 @@ async def test_authentication_endpoint(
     assert "dropbox_refresh_token" in response.json()
     assert "dropbox_access_token_expiration" in response.json()
 
+    # check if user in database
+    result = await db.execute(
+        select(User).where(User.dropbox_account_id == "mock_account_id")
+    )
+    user = result.scalars().first()
+    assert user is not None
+
 
 class MockOAuthResult:
     access_token = "mock_access_token"
@@ -59,7 +70,7 @@ def mock_finish(self, params):
 
 
 class MockUserInfo:
-    name = type("Name", (), {"display_name": "Mock User"})
+    name = type("Name", (), {"display_name": TEMP_MOCK_USER})
     email = "mockuser@example.com"
     account_id = "mock_account_id"
 

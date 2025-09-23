@@ -27,7 +27,8 @@ dependencies = [
     "itsdangerous",
     "pytest",
     "pytest-env",
-    "pytest-asyncio"
+    "pytest-asyncio",
+    "pytest-order"
 ]
 
 [tool.setuptools.packages.find]

@@ -64,9 +64,7 @@ async def add_zipped_folder_to_database(
     os.makedirs(tmp_dir, exist_ok=True)
     try:
         tmp_zipped_folder_path = Path(tmp_dir) / zipped_folder.filename
-        tmp_client_dir = tmp_zipped_folder_path.with_suffix(
-            ""
-        )  # folder name without .zip
+        tmp_client_dir = tmp_zipped_folder_path.with_suffix("")
 
         # extract zip to temp directory
         await write_zip_in_chunks(zipped_folder, tmp_zipped_folder_path)

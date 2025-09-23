@@ -18,11 +18,19 @@ async def create_tables():
         await conn.run_sync(Base.metadata.create_all)
 
 
-async def drop_tables(drop_users: bool = False):
+async def drop_tables(**drop_table_flags):
+    """
+    Drop tables based on keyword arguments. Example usage:
+    await drop_tables(users=True, documents=False)
+    If a table's flag is True, it will be dropped. If no flags are provided, all tables are dropped.
+    """
     async with engine.begin() as conn:
-        if drop_users:
-            await conn.run_sync(User.__table__.drop)
-        else:
+        if drop_table_flags:
             for table in Base.metadata.sorted_tables:
-                if table.name != User.__tablename__:
+                flag = drop_table_flags.get(table.name, False)
+                if flag:
                     await conn.run_sync(table.drop)
+        else:
+            # Drop all tables if no flags are provided
+            for table in Base.metadata.sorted_tables:
+                await conn.run_sync(table.drop)

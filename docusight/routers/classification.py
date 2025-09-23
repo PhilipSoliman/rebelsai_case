@@ -1,6 +1,5 @@
 import os
 import shutil
-import uuid
 from pathlib import Path
 
 import aiofiles
@@ -12,13 +11,16 @@ from transformers import Pipeline
 
 from docusight.config import settings
 from docusight.database import get_db
+from docusight.dropbox import get_dropbox_client, get_user
 from docusight.file_utils import (
     download_files_from_dropbox,
+    generate_tmp_dir,
     get_documents_in_folder,
     get_folder_by_path,
 )
 from docusight.logging import logger
 from docusight.models import Classification, Document, Folder
+from docusight.routers.insight import DocumentResponseModel, generate_document_response
 
 router = APIRouter(
     prefix="/classification",
@@ -26,12 +28,13 @@ router = APIRouter(
 )
 
 
-# Response models & generators
+# Response models
 class DocumentClassificationResponseModel(BaseModel):
     id: int
     document_id: int
     label: str
     score: float
+    document: DocumentResponseModel
 
 
 class FolderClassificationResponseModel(BaseModel):
@@ -51,12 +54,12 @@ async def classify_folder(
     Stores results in ClassificationResult table.
     """
     # create temporary directory for downloads
-    download_folder_id = str(uuid.uuid4())
-    tmp_dir = Path(settings.TEMP_DIR) / settings.DEFAULT_USER_NAME / download_folder_id
+    user = await get_user(db, request.session)
+    tmp_dir = generate_tmp_dir(user)
 
     try:
         # obtain folder and documents
-        folder: Folder = await get_folder_by_path(folder_path, db)
+        folder: Folder = await get_folder_by_path(folder_path, db, user)
         if not folder:
             raise HTTPException(status_code=404, detail="Folder not found")
 
@@ -65,15 +68,15 @@ async def classify_folder(
         )
 
         # download documents from dropbox
+        dropbox_client = await get_dropbox_client(user)
         dropbox_paths = [doc.dropbox_path for doc in documents if doc.dropbox_path]
         if not dropbox_paths:
             raise HTTPException(
                 status_code=400, detail="No documents with Dropbox paths found"
             )
-
         os.makedirs(tmp_dir, exist_ok=True)
         local_paths: list[Path] = await download_files_from_dropbox(
-            request.app.state.dropbox, dropbox_paths, tmp_dir # TODO: per-user dropbox client
+            dropbox_client, dropbox_paths, tmp_dir
         )
 
         # classify each document
@@ -101,7 +104,9 @@ async def classify_folder(
                 score = res["score"]
 
                 # Save to DB
-                classification = Classification(document=doc, label=label, score=score)
+                classification = Classification(
+                    user_id=user.id, document=doc, label=label, score=score
+                )
                 db.add(classification)
 
                 # store classification for response
@@ -112,7 +117,8 @@ async def classify_folder(
 
         # Commit the transaction and refresh the folder instance
         await db.commit()
-        await db.refresh(folder)
+        for classification in classifications:
+            await db.refresh(classification)
 
         # Prepare responses
         classification_responses = []
@@ -122,6 +128,7 @@ async def classify_folder(
                 document_id=classification.document_id,
                 label=classification.label,
                 score=classification.score,
+                document=generate_document_response(classification.document),
             )
             classification_responses.append(classification_response)
         return FolderClassificationResponseModel(

@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from docusight.database import get_db
+from docusight.dropbox import get_dropbox_client, get_user
 from docusight.file_utils import (
     add_zipped_folder_to_database,
     get_documents_in_folder,
@@ -118,20 +119,31 @@ async def analyze_folder(
     Returns:
         FolderResponseModel: The folder structure and metadata, including documents and subfolders.
     """
-    path = zipped_folder.filename.replace(".zip", "")
+    # get current user
+    user = await get_user(db, request.session)
+
+    # get top level folder name from zip file
+    folder_name = zipped_folder.filename.replace(".zip", "")
 
     # Check if folder already exists in the database
-    existing_folder = await get_folder_by_path(str(path), db)
+    existing_folder = await get_folder_by_path(str(folder_name), db, user)
     if existing_folder:
-        logger.info(f"Folder {path} already already exists in the database.")
+        logger.info(f"Folder {folder_name} already already exists in the database.")
         return await generate_folder_response(existing_folder, db)
 
-    # add folder to database
-    folder = await add_zipped_folder_to_database(zipped_folder, db, request.app.state.dropbox, drill) # TODO: per-user dropbox client
+    # add folder to database (& upload file contents to dropbox)
+    dropbox_client = await get_dropbox_client(user)
+    folder = await add_zipped_folder_to_database(
+        zipped_folder=zipped_folder,
+        db=db,
+        dropbox_client=dropbox_client,
+        user=user,
+        drill=drill,
+    )
 
     # generate response
     response = await generate_folder_response(folder, db)
-    logger.info(f"Added folder {path} to the database.")
+    logger.info(f"Added folder {folder_name} to the database.")
 
     # Commit the transaction and refresh the folder instance
     await db.commit()

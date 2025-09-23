@@ -34,11 +34,13 @@ async def lifespan(app: FastAPI):
 
     yield
     # SHUTDOWN #
-    # Drop ORM tables
-    await drop_tables()
-
+    
     # Delete all files in Dropbox upload directory
     await cleanup_dropbox_files()
+
+    # Drop ORM tables (except users to keep accounts)
+    await drop_tables(users=False)
+
 
 
 # Main application instance

@@ -20,16 +20,29 @@ dependencies = [
     "aiofiles",
     "transformers",
     "huggingface_hub[hf_xet]",
-    "PyPDF2",
+    "pypdf",
     "python-docx",
     "bs4",
     "striprtf",
     "itsdangerous",
+    "pytest",
+    "pytest-env",
+    "pytest-asyncio"
 ]
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["docusight*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v"
+env = [
+    "DATABASE_URL=sqlite+aiosqlite:///./test.db",
+    "DROPBOX_APP_KEY=test_app_key",
+    "DROPBOX_APP_SECRET=test_app_secret",
+    "SESSION_SECRET_KEY=test_secret_key"
+]
 
 [project.urls]
 Homepage = "https://github.com/PhilipSoliman/rebelsai_case"

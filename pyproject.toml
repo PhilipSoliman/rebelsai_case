@@ -23,7 +23,8 @@ dependencies = [
     "PyPDF2",
     "python-docx",
     "bs4",
-    "striprtf"
+    "striprtf",
+    "itsdangerous",
 ]
 
 [tool.setuptools.packages.find]

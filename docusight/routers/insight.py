@@ -125,14 +125,9 @@ async def analyze_folder(
     if existing_folder:
         logger.info(f"Folder {path} already already exists in the database.")
         return await generate_folder_response(existing_folder, db)
-    
-    # check for dropbox client in app state
-    if not hasattr(request.app.state, "dropbox"):
-        logger.error("Dropbox client is not configured. Please authenticate first.")
-        return {"error": "Dropbox client is not configured. Please authenticate first."}
 
     # add folder to database
-    folder = await add_zipped_folder_to_database(zipped_folder, db, request.app.state.dropbox, drill)
+    folder = await add_zipped_folder_to_database(zipped_folder, db, request.app.state.dropbox, drill) # TODO: per-user dropbox client
 
     # generate response
     response = await generate_folder_response(folder, db)

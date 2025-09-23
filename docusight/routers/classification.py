@@ -73,7 +73,7 @@ async def classify_folder(
 
         os.makedirs(tmp_dir, exist_ok=True)
         local_paths: list[Path] = await download_files_from_dropbox(
-            request.app.state.dropbox, dropbox_paths, tmp_dir
+            request.app.state.dropbox, dropbox_paths, tmp_dir # TODO: per-user dropbox client
         )
 
         # classify each document

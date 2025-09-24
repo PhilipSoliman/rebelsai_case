@@ -45,6 +45,9 @@ env = [
     "SESSION_SECRET_KEY=test_secret_key"
 ]
 
+[tool.isort]
+profile = "black"
+
 [project.urls]
 Homepage = "https://github.com/PhilipSoliman/rebelsai_case"
 Documentation = "https://github.com/PhilipSoliman/rebelsai_case/blob/main/README.md"

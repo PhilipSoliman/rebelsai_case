@@ -1,9 +1,10 @@
 import os
 import re
+import secrets
 import subprocess
+import sys
 import venv
 from pathlib import Path
-import secrets
 
 # Get the absolute path of the project directory
 PROJECT_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -15,19 +16,25 @@ VENV_DIR = ".venv"
 CUDA_VERSIONS = ["cu118", "cu126", "cu128"]
 
 # Python executable within the virtual environment (corrected for linux/windows)
-PYTHON_EXEC = (
-    os.path.join(VENV_DIR, "Scripts", "python.exe")
-    if os.name == "nt"
-    else os.path.join(VENV_DIR, "bin", "python")
-)
+use_global_python = "--use-global-python" in sys.argv
+
+if use_global_python:
+    PYTHON_EXEC = sys.executable
+else:
+    PYTHON_EXEC = (
+        os.path.join(VENV_DIR, "Scripts", "python.exe")
+        if os.name == "nt"
+        else os.path.join(VENV_DIR, "bin", "python3")
+    )
 
 
 def create_virtual_environment():
-    if not os.path.exists(VENV_DIR):
-        venv.create(VENV_DIR, with_pip=True)
-        print(f"✅ Created virtual environment '{VENV_DIR}'\n")
-    else:
-        print(f"Virtual environment '{VENV_DIR}' already exists")
+    if not use_global_python: 
+        if not os.path.exists(VENV_DIR):
+            venv.create(VENV_DIR, with_pip=True)
+            print(f"✅ Created virtual environment '{VENV_DIR}'\n")
+        else:
+            print(f"Virtual environment '{VENV_DIR}' already exists")
 
 
 def install_package():
@@ -89,25 +96,54 @@ def _get_cuda_version():
                 else:
                     raise ValueError("Could not parse CUDA version from nvcc output.")
     except FileNotFoundError:
-        input(
-            "CUDA not found. If you want to speed up some calculations in this project, please install CUDA. Press Enter to continue without CUDA."
-        )
+        print("CUDA not found. If you want to speed up some calculations in this project, please install CUDA. Continuing without CUDA.")
         return ""
 
 
 def generate_default_env():
     env_path = Path(__file__).resolve().parent / ".env"
+    # Parse command-line args
+    app_key = None
+    app_secret = None
+    for i, arg in enumerate(sys.argv):
+        if arg == "--app-key" and i + 1 < len(sys.argv):
+            app_key = sys.argv[i + 1]
+        if arg == "--app-secret" and i + 1 < len(sys.argv):
+            app_secret = sys.argv[i + 1]
+
+    # Read existing .env if present
+    env_vars = {}
     if env_path.exists():
-        print(f".env file already exists at {env_path}")
-        return
-    default_content = f"""
-DATABASE_URL=sqlite+aiosqlite:///./rebelsai.db
-DROPBOX_APP_KEY=your_dropbox_app_key_here
-DROPBOX_APP_SECRET=your_dropbox_app_secret_here
-SESSION_SECRET_KEY={secrets.token_urlsafe(32)}
-"""
-    env_path.write_text(default_content.strip())
-    print(f"Default .env file created at {env_path}")
+        with env_path.open("r") as f:
+            for line in f:
+                if line.strip() and not line.strip().startswith("#"):
+                    if "=" in line:
+                        k, v = line.strip().split("=", 1)
+                        env_vars[k] = v
+
+    # Set or update required variables
+    env_vars["DATABASE_URL"] = env_vars.get(
+        "DATABASE_URL", "sqlite+aiosqlite:///./rebelsai.db"
+    )
+    env_vars["DROPBOX_APP_KEY"] = (
+        app_key
+        if app_key is not None
+        else env_vars.get("DROPBOX_APP_KEY", "your_dropbox_app_key_here")
+    )
+    env_vars["DROPBOX_APP_SECRET"] = (
+        app_secret
+        if app_secret is not None
+        else env_vars.get("DROPBOX_APP_SECRET", "your_dropbox_app_secret_here")
+    )
+    env_vars["SESSION_SECRET_KEY"] = env_vars.get(
+        "SESSION_SECRET_KEY", secrets.token_urlsafe(32)
+    )
+
+    # Write updated .env
+    with env_path.open("w") as f:
+        for k, v in env_vars.items():
+            f.write(f"{k}={v}\n")
+    print(f".env file updated at {env_path}")
 
 
 if __name__ == "__main__":

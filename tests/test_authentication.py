@@ -44,7 +44,7 @@ async def test_authentication_endpoint(
     assert "dropbox_refresh_token" in response.json()
     assert "dropbox_access_token_expiration" in response.json()
 
-    # check if user in database
+    # Check if user in database
     result = await db.execute(
         select(User).where(User.dropbox_account_id == "mock_account_id")
     )
@@ -76,7 +76,7 @@ class MockUserInfo:
 
 
 def mock_dropbox_init(self, access_token):
-    pass  # Do nothing
+    pass
 
 
 def mock_users_get_current_account(self):

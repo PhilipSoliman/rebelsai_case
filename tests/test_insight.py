@@ -1,5 +1,4 @@
 import uuid
-from pathlib import Path
 
 import aiofiles
 import pytest
@@ -7,8 +6,13 @@ from httpx import AsyncClient
 from pytest import MonkeyPatch
 from sqlalchemy.future import select
 
-from docusight.models import Document, User
-from tests.conftest import TEMP_DROPBOX_DIR, ZIPPED_FOLDER_PATH
+from docusight.models import Document
+from tests.conftest import (
+    TEMP_DROPBOX_DIR,
+    ZIPPED_FOLDER_PATH,
+    mock_get_dropbox_client,
+    mock_get_user,
+)
 
 
 @pytest.mark.asyncio
@@ -33,7 +37,7 @@ async def test_insight_endpoint(
 
     # Prepare zipped folder
     with ZIPPED_FOLDER_PATH.open("rb") as f:
-        files = {"zipped_folder": ("client_data.zip", f, "application/zip")}
+        files = {"zipped_folder": (ZIPPED_FOLDER_PATH.name, f, "application/zip")}
         response = await async_client.post("/insight/folder?drill=true", files=files)
 
     assert response.status_code == 200
@@ -50,23 +54,9 @@ async def test_insight_endpoint(
     assert len(db_docs) == len(dropbox_files)
 
 
-async def mock_get_user(db, session):
-    result = await db.execute(select(User).limit(1))
-    user = result.scalars().first()
-    if user:
-        return user
-    raise Exception("No user found in DB for mock_get_user")
-
-
-async def mock_get_dropbox_client(user):
-    return None
-
-
 async def mock_upload_files_to_dropbox(dropbox_client, file_paths, tmp_dir):
-    # Simulate storing files locally and return fake dropbox paths
     dropbox_paths = {}
     for file_path in file_paths:
-        # Copy file to a local 'mock_dropbox' directory
         TEMP_DROPBOX_DIR.mkdir(parents=True, exist_ok=True)
         file_id = str(uuid.uuid4())
         file_ext = "." + file_path.name.split(".")[-1] if "." in file_path.name else ""

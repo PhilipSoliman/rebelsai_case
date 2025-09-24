@@ -40,9 +40,9 @@ testpaths = ["tests"]
 addopts = "-v"
 env = [
     "DATABASE_URL=sqlite+aiosqlite:///./test.db",
-    "DROPBOX_APP_KEY=test_app_key",
-    "DROPBOX_APP_SECRET=test_app_secret",
-    "SESSION_SECRET_KEY=test_secret_key"
+    "DROPBOX_APP_KEY=testkey00000000", # spoof 15-char. alphanumeric key
+    "DROPBOX_APP_SECRET=testsecret00000", # spoof 15-char alphanumeric secret
+    "SESSION_SECRET_KEY=sessionsecret0000000000000000000" # spoof 32-char alphanumeric secret
 ]
 
 [tool.isort]

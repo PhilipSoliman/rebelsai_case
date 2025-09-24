@@ -7,7 +7,9 @@ import venv
 from pathlib import Path
 
 # Get the absolute path of the project directory
-PROJECT_DIR = os.path.abspath(os.path.dirname(__file__))
+PROJECT_DIR = Path(os.path.abspath(os.path.dirname(__file__)))
+
+APP_DIR = PROJECT_DIR / "docusight"
 
 # Default virtual environment directory
 VENV_DIR = ".venv"
@@ -103,7 +105,8 @@ def _get_cuda_version():
 
 
 def generate_default_env():
-    env_path = Path(__file__).resolve().parent / ".env"
+    env_path = APP_DIR / ".env"
+
     # Parse command-line args
     app_key = None
     app_secret = None

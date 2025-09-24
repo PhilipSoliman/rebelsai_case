@@ -63,7 +63,8 @@ class Settings(BaseSettings):
     def not_placeholder(cls, v):
         if not re.fullmatch(r"[a-z0-9]{15}", v):
             raise ValueError(
-                "Dropbox app keys must be 15-character lowercase alphanumeric strings."
+                "Dropbox app keys must be 15-character lowercase alphanumeric strings. Current value: "
+                + v
             )
         return v
 

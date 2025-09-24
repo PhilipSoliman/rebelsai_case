@@ -54,6 +54,7 @@ async def test_classification_endpoint(
             project_docs.append(doc)
 
     classifications = data["classified_documents"]
+    num_correct = 0
     for classification in classifications:
         doc_id = classification["document"]["id"]
         assert any(
@@ -61,7 +62,13 @@ async def test_classification_endpoint(
         ), f"Document ID {doc_id} not found in DB"
         document_name = classification["document"]["filename"].split(".")[0]
         if classification["label"] != EXPECTED_SENTIMENTS[document_name]:
-            warnings.warn(f"Unexpected label {classification['label']} for {document_name}")
+            warnings.warn(
+                f"Unexpected label {classification['label']} for {document_name}"
+            )
+        else:
+            num_correct += 1
+    average_score = num_correct / len(project_docs)
+    assert average_score >= 0.5, f"Average accuracy below 50%"
 
 
 async def mock_download_files_from_dropbox(dropbox_client, dropbox_paths, tmp_dir):

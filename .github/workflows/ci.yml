@@ -22,7 +22,7 @@ jobs:
           python-version: '3.11'
 
       - name: Run setup script
-        run: python setup_env.py --use-global-python
+        run: python setup_env.py --use-global-python --app-key ${{ secrets.DROPBOX_APP_KEY }} --app-secret ${{ secrets.DROPBOX_APP_SECRET }}
 
       - name: Install code formatters
         run: |
@@ -30,11 +30,11 @@ jobs:
 
       - name: Run black formatter
         run: |
-          black .
+          black --check .
 
       - name: Run isort
         run: |
-          isort .
+          isort --check-only .
 
       - name: Run tests
         run: |

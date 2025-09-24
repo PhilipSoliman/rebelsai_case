@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from docusight.config import settings
-from docusight.database import get_db
+from docusight.database import async_session
 from docusight.logging import logger
 from docusight.models import User
 
@@ -74,23 +74,23 @@ def get_dropbox_account_id(session: dict) -> str:
 
 
 async def cleanup_dropbox_files():
-    db = await get_db().__anext__()
-    result = await db.execute(select(User))
-    users: list[User] = result.scalars().all()
-    for user in users:
-        try:
-            dropbox_client = await get_dropbox_client(user)
+    async with async_session() as db:
+        result = await db.execute(select(User))
+        users: list[User] = result.scalars().all()
+        for user in users:
+            try:
+                dropbox_client = await get_dropbox_client(user)
 
-            # List all files in the upload directory
-            res = dropbox_client.files_list_folder(settings.UPLOAD_DIR)
-            for entry in res.entries:
-                if hasattr(entry, "path_display"):
-                    dropbox_client.files_delete_v2(entry.path_display)
-            # If there are more files, continue listing and deleting
-            while res.has_more:
-                res = dropbox_client.files_list_folder_continue(res.cursor)
+                # List all files in the upload directory
+                res = dropbox_client.files_list_folder(settings.UPLOAD_DIR)
                 for entry in res.entries:
                     if hasattr(entry, "path_display"):
                         dropbox_client.files_delete_v2(entry.path_display)
-        except Exception as e:
-            logger.error(f"Error cleaning up Dropbox files for user {user}: {e}")
+                # If there are more files, continue listing and deleting
+                while res.has_more:
+                    res = dropbox_client.files_list_folder_continue(res.cursor)
+                    for entry in res.entries:
+                        if hasattr(entry, "path_display"):
+                            dropbox_client.files_delete_v2(entry.path_display)
+            except Exception as e:
+                logger.error(f"Error cleaning up Dropbox files for user {user}: {e}")

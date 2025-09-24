@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Run setup script
+        run: python setup_env.py
+
+      - name: Install code formatters
+        run: |
+          pip install black isort
+
+      - name: Run black formatter
+        run: |
+          black --check .
+
+      - name: Run isort
+        run: |
+          isort --check-only .
+
+      - name: Run tests
+        run: |
+          pytest -v

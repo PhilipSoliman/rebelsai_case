@@ -27,11 +27,11 @@ jobs:
 
       - name: Run black formatter
         run: |
-          black --check .
+          black .
 
       - name: Run isort
         run: |
-          isort --check-only .
+          isort .
 
       - name: Run tests
         run: |

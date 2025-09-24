@@ -23,4 +23,4 @@ RUN python3 setup_env.py --app-key $DROPBOX_APP_KEY --app-secret $DROPBOX_APP_SE
 
 EXPOSE 8000
 
-CMD ["python3", "-m", "fastapi", "dev", "docusight/main.py", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python3", "-m", "fastapi", "run", "docusight/main.py", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,19 +1,11 @@
-# FROM python:3.11-slim
-FROM nvidia/cuda:12.8.0-cudnn-runtime-ubuntu22.04
+FROM nvidia/cuda:12.8.0-cudnn-devel-ubuntu22.04
 
 WORKDIR /docusight
 
-# # Install CUDA toolkit
-# RUN apt-get update && \
-#     apt-get install -y wget && \
-#     wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb && \
-#     apt-get install -y ./cuda-keyring_1.1-1_all.deb && \
-#     apt-get update && \
-#     apt-get install -y cuda-toolkit && \
-#     rm -rf /var/lib/apt/lists/*
-# RUN apt-get update && \
-#     apt-get install -y python3 python3-pip
+# Silence interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive 
+
+# Install Python 3.11 and pip
 RUN apt-get update && \
     apt-get install -y software-properties-common && \
     add-apt-repository ppa:deadsnakes/ppa && \
@@ -26,6 +18,7 @@ COPY . /docusight
 ARG DROPBOX_APP_KEY
 ARG DROPBOX_APP_SECRET
 
+# Run setup script with Dropbox credentials
 RUN python3 setup_env.py --app-key $DROPBOX_APP_KEY --app-secret $DROPBOX_APP_SECRET --use-global-python
 
 EXPOSE 8000

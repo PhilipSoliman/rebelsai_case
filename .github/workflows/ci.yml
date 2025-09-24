@@ -19,7 +19,7 @@ jobs:
           python-version: '3.11'
 
       - name: Run setup script
-        run: python setup_env.py
+        run: python setup_env.py --use-global-python
 
       - name: Install code formatters
         run: |

@@ -161,4 +161,18 @@ async def classify_folder(
 
 async def classify_batch(classifier: Pipeline, texts: list[str]):
     """Run batch classification in threadpool."""
-    return await run_in_threadpool(classifier, texts)
+    result = await run_in_threadpool(
+        classifier, texts,  batch_size=settings.CLASSIFICATION_BATCH_SIZE
+    )
+    for res in result:
+        label = res["label"]
+        if label.endswith(" stars"):
+            # convert "4 stars" to "positive"
+            stars = int(label.split(" ")[0])
+            if stars <= 2:
+                res["label"] = "Negative"
+            elif stars == 3:
+                res["label"] = "Neutral"
+            else:
+                res["label"] = "Positive"
+    return result

@@ -2,7 +2,7 @@ import io
 import sys
 
 from fastapi import FastAPI
-from transformers import RobertaForSequenceClassification, RobertaTokenizer, pipeline
+from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
 
 from docusight.config import settings
 from docusight.logging import logger
@@ -13,8 +13,8 @@ def setup_pipeline(app: FastAPI):
     old_stdout = sys.stdout
     sys.stdout = stdout_buffer
     try:
-        tokenizer = RobertaTokenizer.from_pretrained(settings.CLASSIFICATION_MODEL_NAME)
-        model = RobertaForSequenceClassification.from_pretrained(
+        tokenizer = AutoTokenizer.from_pretrained(settings.CLASSIFICATION_MODEL_NAME)
+        model = AutoModelForSequenceClassification.from_pretrained(
             settings.CLASSIFICATION_MODEL_NAME
         )
 
@@ -29,12 +29,13 @@ def setup_pipeline(app: FastAPI):
         # model = torch.compile(model)
         # sentiment_classifier.model = model
 
+        # Store in app state for access in endpoints
         app.state.sentiment_classifier = sentiment_classifier
 
     finally:
         sys.stdout = old_stdout
 
-    # log any output from pipeline instantiation
+    # Log any output from pipeline instantiation
     cuda_message = stdout_buffer.getvalue().strip()
     if cuda_message:
         logger.info(f"HuggingFace pipeline: {cuda_message}")

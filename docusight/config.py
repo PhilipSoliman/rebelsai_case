@@ -43,7 +43,12 @@ class Settings(BaseSettings):
     ZIP_FILE_READ_CHUNK_SIZE: int = 1024 * 1024  # 1 MB
 
     # Model name for classification
-    CLASSIFICATION_MODEL_NAME: str = "DTAI-KULeuven/robbert-v2-dutch-sentiment"
+    CLASSIFICATION_MODEL_NAME: str = "nlptown/bert-base-multilingual-uncased-sentiment"
+    
+    # NOTE Some other models: 
+    # "nlptown/bert-base-multilingual-uncased-sentiment"
+    # "tabularisai/multilingual-sentiment-analysis"
+    # "DTAI-KULeuven/robbert-v2-dutch-sentiment"
 
     # GPU device
     GPU_DEVICE: int = 0 if torch.cuda.is_available() else -1

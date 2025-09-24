@@ -28,10 +28,7 @@ class Settings(BaseSettings):
     TEMP_DIR: Path = APP_DIR / "temp"
 
     # Path to (dummy) client data folder (for testing / prototyping)
-    CLIENT_DATA_DIR: Path = PROJECT_DIR / "client_data"
-
-    # Path to (dummy) client zipped folder
-    CLIENT_ZIPPED_FOLDER: Path = CLIENT_DATA_DIR.with_suffix(".zip")
+    DATA_DIR: Path = PROJECT_DIR / "data"
 
     # Upload directory (in dropbox, relative to root)
     UPLOAD_DIR: str = "/uploads"
@@ -45,7 +42,7 @@ class Settings(BaseSettings):
     # File read chunk size (in bytes) when processing large files
     ZIP_FILE_READ_CHUNK_SIZE: int = 1024 * 1024  # 1 MB
 
-    # Model name for classification TODO: Find dutch sentiment analysis model
+    # Model name for classification
     CLASSIFICATION_MODEL_NAME: str = "DTAI-KULeuven/robbert-v2-dutch-sentiment"
 
     # GPU device
@@ -59,9 +56,3 @@ class Settings(BaseSettings):
 
 # Create a single instance to import everywhere
 settings = Settings()
-
-
-# # Check dropbox token
-# def is_dropbox_token_set() -> bool:
-#     token = settings.DROPBOX_ACCESS_TOKEN
-#     return bool(token) and token != "your_dropbox_token_here"

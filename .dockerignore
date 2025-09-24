@@ -1,0 +1,15 @@
+.git
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+.env
+.vscode
+*.log
+tests/
+data/
+docusight.egg-info/
+.venv
+.vscode/

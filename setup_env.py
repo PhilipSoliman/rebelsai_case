@@ -29,7 +29,7 @@ else:
 
 
 def create_virtual_environment():
-    if not use_global_python: 
+    if not use_global_python:
         if not os.path.exists(VENV_DIR):
             venv.create(VENV_DIR, with_pip=True)
             print(f"✅ Created virtual environment '{VENV_DIR}'\n")
@@ -96,7 +96,9 @@ def _get_cuda_version():
                 else:
                     raise ValueError("Could not parse CUDA version from nvcc output.")
     except FileNotFoundError:
-        print("CUDA not found. If you want to speed up some calculations in this project, please install CUDA. Continuing without CUDA.")
+        print(
+            "CUDA not found. If you want to speed up some calculations in this project, please install CUDA. Continuing without CUDA."
+        )
         return ""
 
 

@@ -1,6 +1,5 @@
 from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String
-from sqlalchemy.orm import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
 
@@ -22,7 +21,7 @@ class User(Base):
     documents = relationship("Document", back_populates="user")
     classifications = relationship("Classification", back_populates="user")
 
-    def __repr__(self): # NOTE: used for logging purposes
+    def __repr__(self):  # NOTE: used for logging purposes
         return f"User(id={self.id}, email={self.email}, dropbox_account_id={self.dropbox_account_id})"
 
 

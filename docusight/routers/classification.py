@@ -162,7 +162,7 @@ async def classify_folder(
 async def classify_batch(classifier: Pipeline, texts: list[str]):
     """Run batch classification in threadpool."""
     result = await run_in_threadpool(
-        classifier, texts,  batch_size=settings.CLASSIFICATION_BATCH_SIZE
+        classifier, texts, batch_size=settings.CLASSIFICATION_BATCH_SIZE
     )
     for res in result:
         label = res["label"]

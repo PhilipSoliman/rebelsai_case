@@ -61,7 +61,7 @@ async def test_classification_endpoint(
         ), f"Document ID {doc_id} not found in DB"
         document_name = classification["document"]["filename"].split(".")[0]
         if classification["label"] != EXPECTED_SENTIMENTS[document_name]:
-            warnings.warn(f"Unexpected label for {document_name}")
+            warnings.warn(f"Unexpected label {classification['label']} for {document_name}")
 
 
 async def mock_download_files_from_dropbox(dropbox_client, dropbox_paths, tmp_dir):

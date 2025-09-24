@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     # Classification batch size
     CLASSIFICATION_BATCH_SIZE: int = 16
 
-    model_config = ConfigDict(env_file=".env")
+    model_config = ConfigDict(env_file=APP_DIR / ".env")
 
     @field_validator("DROPBOX_APP_KEY", "DROPBOX_APP_SECRET")
     def not_placeholder(cls, v):

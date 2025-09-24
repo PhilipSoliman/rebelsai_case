@@ -1,7 +1,8 @@
+import re
 from pathlib import Path
 
 import torch
-from pydantic import ConfigDict
+from pydantic import ConfigDict, field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -44,8 +45,8 @@ class Settings(BaseSettings):
 
     # Model name for classification
     CLASSIFICATION_MODEL_NAME: str = "nlptown/bert-base-multilingual-uncased-sentiment"
-    
-    # NOTE Some other models: 
+
+    # NOTE Some other models:
     # "nlptown/bert-base-multilingual-uncased-sentiment"
     # "tabularisai/multilingual-sentiment-analysis"
     # "DTAI-KULeuven/robbert-v2-dutch-sentiment"
@@ -56,7 +57,15 @@ class Settings(BaseSettings):
     # Classification batch size
     CLASSIFICATION_BATCH_SIZE: int = 16
 
-    model_config = ConfigDict(env_file="../.env")
+    model_config = ConfigDict(env_file=".env")
+
+    @field_validator("DROPBOX_APP_KEY", "DROPBOX_APP_SECRET")
+    def not_placeholder(cls, v):
+        if not re.fullmatch(r"[a-z0-9]{15}", v):
+            raise ValueError(
+                "Dropbox app keys must be 15-character lowercase alphanumeric strings."
+            )
+        return v
 
 
 # Create a single instance to import everywhere

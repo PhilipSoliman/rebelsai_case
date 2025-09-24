@@ -13,6 +13,7 @@ from docusight.models import User
 
 
 def get_auth_flow(base_url: str, session: dict) -> DropboxOAuth2Flow:
+
     return DropboxOAuth2Flow(
         consumer_key=settings.DROPBOX_APP_KEY,
         consumer_secret=settings.DROPBOX_APP_SECRET,

@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     DROPBOX_APP_KEY: str
     DROPBOX_APP_SECRET: str
     SESSION_SECRET_KEY: str
+    PYTORCH_CUDA_VERSION: str 
 
     # Base directory of the project
     PROJECT_DIR: Path = Path(__file__).resolve().parent.parent

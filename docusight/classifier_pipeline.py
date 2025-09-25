@@ -32,6 +32,10 @@ def setup_pipeline(app: FastAPI):
         # Store in app state for access in endpoints
         app.state.sentiment_classifier = sentiment_classifier
 
+        logger.info(
+            f"Loaded classification model '{settings.CLASSIFICATION_MODEL_NAME}'"
+        )
+
     finally:
         sys.stdout = old_stdout
 

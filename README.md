@@ -37,7 +37,7 @@ It can scan a (zipped) folder of documents, extract metadata, and perform docume
 
   * Classifies documents using:
     * Hugging Face Transformers pipeline for NLP tasks.
-    * PyTorch + CUDA for ML model inference with either CPU or GPU (depending on availability).
+    * PyTorch + CUDA for ML model inference with either CPU or in parallel if GPU is configured (see [Setting up PyTorch+CUDA](#setting-up-pytorchcuda)).
   * Stores classification results in the database.
 ---
 
@@ -49,9 +49,9 @@ It can scan a (zipped) folder of documents, extract metadata, and perform docume
 * **Uvicorn** – ASGI server to run the app.
 * **PyTorch+CUDA** – for running ML models on GPU.
 * [**Hugging Face Transformers**](https://github.com/huggingface/transformers?tab=readme-ov-file) – Dutch NLP and sentiment analysis. Supported models: 
-  * [nlptown/bert-base-multilingual-uncased-sentiment](https://huggingface.co/nlptown/bert-base-multilingual-uncased-sentiment) (default).
+  * [DTAI-KULeuven/robbert-v2-dutch-sentiment](https://huggingface.co/DTAI-KULeuven/robbert-v2-dutch-sentiment)  (default).
+  * [nlptown/bert-base-multilingual-uncased-sentiment](https://huggingface.co/nlptown/bert-base-multilingual-uncased-sentiment)
   * [tabularisai/multilingual-sentiment-analysis](https://huggingface.co/tabularisai/multilingual-sentiment-analysis).
-  * [DTAI-KULeuven/robbert-v2-dutch-sentiment](https://huggingface.co/DTAI-KULeuven/robbert-v2-dutch-sentiment).
 ---
 
 ## Requirements
@@ -74,8 +74,8 @@ It can scan a (zipped) folder of documents, extract metadata, and perform docume
 This will:
 * create a virtual environment;
 * install dependencies;
-* create a `.env` file with the provided Dropbox app key and secret
 * automatically detect and install the appropriate PyTorch+CUDA version (if a CUDA-capable GPU is detected, otherwise CPU-only version is installed).
+* create a `.env` file with the provided Dropbox app key and secret as well as PyTorch+CUDA version and classification model name;
 
 ---
 
@@ -156,9 +156,12 @@ Commands assume you are in the project root directory.
 * _Currently_, the service:
   * Is designed with FastAPI for asynchronous request handling, supporting multiple concurrent users.
   * Parallel classification of large volumes of documents is possible thanks to batched inference with Hugging Face Transformers (if using GPU).
-  * Can be containerized with Docker for easy and secure deployment and scaling. For example, using Docker Compose or Kubernetes.
+  * Can be containerized with Docker for easy and secure deployment and scaling
 
 * _In the future_, the service:
   * Can be extended with multiprocessing or task queues (Celery, Redis) for parallel document processing (in the insight endpoint).
   * Can be adapted to use more robust, cloud-based databases (PostgreSQL, MySQL) for better performance and scalability.
+  * If the host machine's GPU has CUDA capability 7.0 or higher, the hugging face model can be precompiled with PyTorch 2.0+, for faster document classification.
+  * Can use Docker Compose or Kubernetes for orchestrating multiple instances of the service and load balancing.
+  * Can be use a more specifically trained model for document classification, fine-tuned on the specific types of documents being processed. The current models do not perform consistently on the provided sample documents.
 ---

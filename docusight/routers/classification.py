@@ -180,13 +180,17 @@ async def classify_batch(classifier: Pipeline, texts: list[str]):
     Returns:
         list[dict]: List of classification results, each with 'label' and 'score'.
     """
+    # classify in threadpool
     result = await run_in_threadpool(
         classifier, texts, batch_size=settings.CLASSIFICATION_BATCH_SIZE
     )
+
+    # Normalize labels to "Positive", "Negative", "Neutral" (supports various model outputs)
     for res in result:
-        label = res["label"]
+        label = res["label"].lower()
+
+        # Handle cases like "4 stars", "very positive", etc.
         if label.endswith(" stars"):
-            # convert "4 stars" to "positive"
             stars = int(label.split(" ")[0])
             if stars <= 2:
                 res["label"] = "Negative"
@@ -194,4 +198,13 @@ async def classify_batch(classifier: Pipeline, texts: list[str]):
                 res["label"] = "Neutral"
             else:
                 res["label"] = "Positive"
+
+        # Handle cases like "very negative", "positive", "neutral", etc.
+        if label in ["very  negative", "negative"]:
+            res["label"] = "Negative"
+        elif label in ["neutral"]:
+            res["label"] = "Neutral"
+        elif label in ["positive", "very  positive"]:
+            res["label"] = "Positive"
+
     return result

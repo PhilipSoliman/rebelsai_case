@@ -1,7 +1,7 @@
-# Base image with CUDA and cuDNN
+# Base image with CUDA and cuDNN (comment out if not using GPU)
 FROM nvcr.io/nvidia/cuda:12.6.3-cudnn-devel-ubuntu22.04
 
-# Set CUDA version for pytorch (should match the CUDA version in the base image and have the 'cu' prefix, no dots)
+# Set CUDA version for pytorch (should match the CUDA version in the base image and have the 'cu' prefix, no dots OR set to 'cpu' for CPU-only)
 ENV PYTORCH_CUDA_VERSION=cu126
 
 WORKDIR /docusight
@@ -34,7 +34,7 @@ RUN python3 -m pip install -e .
 # Pre-install torch with cuda support
 RUN python3 -m pip install torch --index-url https://download.pytorch.org/whl/${PYTORCH_CUDA_VERSION}
 
-# Pre-download Hugging Face models (example for transformers)
+# Pre-download Hugging Face models (see README for other model options)
 ENV MODEL_NAME=nlptown/bert-base-multilingual-uncased-sentiment
 RUN python3 -c "from transformers import AutoModelForSequenceClassification; AutoModelForSequenceClassification.from_pretrained('${MODEL_NAME}')"
 

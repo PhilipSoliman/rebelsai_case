@@ -14,6 +14,10 @@ APP_DIR = PROJECT_DIR / "docusight"
 # Default virtual environment directory
 VENV_DIR = ".venv"
 
+# Dictionary to hold environment variables
+ENV_PATH = APP_DIR / ".env"
+ENV_VARS = {}
+
 # CUDA versions supported by PyTorch
 CUDA_VERSIONS = ["cu118", "cu126", "cu128"]
 
@@ -58,9 +62,62 @@ def install_package():
     print(f"✅ Installed local package in {PROJECT_DIR}\n")
 
 
+def generate_default_env():
+
+    # Parse command-line args
+    app_key = None
+    app_secret = None
+    for i, arg in enumerate(sys.argv):
+        if arg == "--app-key" and i + 1 < len(sys.argv):
+            app_key = sys.argv[i + 1]
+        if arg == "--app-secret" and i + 1 < len(sys.argv):
+            app_secret = sys.argv[i + 1]
+
+    # Read existing .env if present
+    if ENV_PATH.exists():
+        with ENV_PATH.open("r") as f:
+            for line in f:
+                if line.strip() and not line.strip().startswith("#"):
+                    if "=" in line:
+                        k, v = line.strip().split("=", 1)
+                        ENV_VARS[k] = v
+
+    # Set or update required variables
+    ENV_VARS["DATABASE_URL"] = ENV_VARS.get(
+        "DATABASE_URL", "sqlite+aiosqlite:///./rebelsai.db"
+    )
+    ENV_VARS["DROPBOX_APP_KEY"] = (
+        app_key
+        if app_key is not None
+        else ENV_VARS.get("DROPBOX_APP_KEY", "your_dropbox_app_key_here")
+    )
+    ENV_VARS["DROPBOX_APP_SECRET"] = (
+        app_secret
+        if app_secret is not None
+        else ENV_VARS.get("DROPBOX_APP_SECRET", "your_dropbox_app_secret_here")
+    )
+    ENV_VARS["SESSION_SECRET_KEY"] = ENV_VARS.get(
+        "SESSION_SECRET_KEY", secrets.token_urlsafe(32)
+    )
+    ENV_VARS["PYTORCH_CUDA_VERSION"] = ENV_VARS.get("PYTORCH_CUDA_VERSION", None)
+
+
 def install_torch():
-    # install PyTorch with or without CUDA support
+    # Find CUDA version
     cuda_version = _get_cuda_version()
+
+    # check if the detected CUDA version matches the one in ENV_VARS (if set)
+    if ENV_VARS["PYTORCH_CUDA_VERSION"] is not None:
+        assert ENV_VARS["PYTORCH_CUDA_VERSION"] == cuda_version, (
+            f"Environment variable PYTORCH_CUDA_VERSION={ENV_VARS['PYTORCH_CUDA_VERSION']} "
+            f"does not match detected CUDA version {cuda_version}."
+        )
+
+    # update env vars with the detected CUDA version if not set
+    ENV_VARS["PYTORCH_CUDA_VERSION"] = cuda_version
+
+    # update ENV_VARS with the actual CUDA version used (or if the CPU is used)
+    ENV_VARS["PYTORCH_CUDA_VERSION"] = cuda_version
     cuda_used = False
     print(f"Detected CUDA version: {cuda_version}")
     if cuda_version in CUDA_VERSIONS:
@@ -69,6 +126,7 @@ def install_torch():
     else:
         torch_url = "https://download.pytorch.org/whl/cpu"
 
+    # install PyTorch with or without CUDA support
     subprocess.check_call(
         [
             PYTHON_EXEC,
@@ -104,55 +162,14 @@ def _get_cuda_version():
         return ""
 
 
-def generate_default_env():
-    env_path = APP_DIR / ".env"
-
-    # Parse command-line args
-    app_key = None
-    app_secret = None
-    for i, arg in enumerate(sys.argv):
-        if arg == "--app-key" and i + 1 < len(sys.argv):
-            app_key = sys.argv[i + 1]
-        if arg == "--app-secret" and i + 1 < len(sys.argv):
-            app_secret = sys.argv[i + 1]
-
-    # Read existing .env if present
-    env_vars = {}
-    if env_path.exists():
-        with env_path.open("r") as f:
-            for line in f:
-                if line.strip() and not line.strip().startswith("#"):
-                    if "=" in line:
-                        k, v = line.strip().split("=", 1)
-                        env_vars[k] = v
-
-    # Set or update required variables
-    env_vars["DATABASE_URL"] = env_vars.get(
-        "DATABASE_URL", "sqlite+aiosqlite:///./rebelsai.db"
-    )
-    env_vars["DROPBOX_APP_KEY"] = (
-        app_key
-        if app_key is not None
-        else env_vars.get("DROPBOX_APP_KEY", "your_dropbox_app_key_here")
-    )
-    env_vars["DROPBOX_APP_SECRET"] = (
-        app_secret
-        if app_secret is not None
-        else env_vars.get("DROPBOX_APP_SECRET", "your_dropbox_app_secret_here")
-    )
-    env_vars["SESSION_SECRET_KEY"] = env_vars.get(
-        "SESSION_SECRET_KEY", secrets.token_urlsafe(32)
-    )
-
-    # Write updated .env
-    with env_path.open("w") as f:
-        for k, v in env_vars.items():
-            f.write(f"{k}={v}\n")
-    print(f".env file updated at {env_path}")
-
-
 if __name__ == "__main__":
     create_virtual_environment()
     install_package()
-    install_torch()
     generate_default_env()
+    install_torch()
+
+    # Write updated .env
+    with ENV_PATH.open("w") as f:
+        for k, v in ENV_VARS.items():
+            f.write(f"{k}={v}\n")
+    print(f"✅ .env file updated at {ENV_PATH}")

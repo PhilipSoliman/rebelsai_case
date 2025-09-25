@@ -100,6 +100,9 @@ def generate_default_env():
         "SESSION_SECRET_KEY", secrets.token_urlsafe(32)
     )
     ENV_VARS["PYTORCH_CUDA_VERSION"] = ENV_VARS.get("PYTORCH_CUDA_VERSION", None)
+    ENV_VARS["CLASSIFICATION_MODEL_NAME"] = ENV_VARS.get(
+        "CLASSIFICATION_MODEL_NAME", "nlptown/bert-base-multilingual-uncased-sentiment"
+    )
 
 
 def install_torch():

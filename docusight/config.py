@@ -13,51 +13,14 @@ class Settings(BaseSettings):
     Static paths are set here.
     """
 
-    # Sensitive values (loaded from .env)
-    DATABASE_URL: str
-    DROPBOX_APP_KEY: str
-    DROPBOX_APP_SECRET: str
-    SESSION_SECRET_KEY: str
-    PYTORCH_CUDA_VERSION: str 
-
-    # Base directory of the project
+    # Directories
     PROJECT_DIR: Path = Path(__file__).resolve().parent.parent
-
-    # Base directory for app-specific files
     APP_DIR: Path = PROJECT_DIR / "docusight"
-
-    # Temporary directory for processing files
     TEMP_DIR: Path = APP_DIR / "temp"
-
-    # Path to (dummy) client data folder (for testing / prototyping)
     DATA_DIR: Path = PROJECT_DIR / "data"
-
-    # Upload directory (in dropbox, relative to root)
     UPLOAD_DIR: str = "/uploads"
 
-    # Dropbox authentication redirect URI
-    DROPBOX_REDIRECT_URI: str = "authentication/callback"
-
-    # Dropbox account ID key in session
-    DROPBOX_ACCOUNT_ID_SESSION_KEY: str = "dropbox_account_id"
-
-    # File read chunk size (in bytes) when processing large files
-    ZIP_FILE_READ_CHUNK_SIZE: int = 1024 * 1024  # 1 MB
-
-    # Model name for classification
-    CLASSIFICATION_MODEL_NAME: str = "nlptown/bert-base-multilingual-uncased-sentiment"
-
-    # NOTE Some other models:
-    # "nlptown/bert-base-multilingual-uncased-sentiment"
-    # "tabularisai/multilingual-sentiment-analysis"
-    # "DTAI-KULeuven/robbert-v2-dutch-sentiment"
-
-    # GPU device
-    GPU_DEVICE: int = 0 if torch.cuda.is_available() else -1
-
-    # Classification batch size
-    CLASSIFICATION_BATCH_SIZE: int = 16
-
+    # Load settings from .env file
     model_config = ConfigDict(env_file=APP_DIR / ".env")
 
     @field_validator("DROPBOX_APP_KEY", "DROPBOX_APP_SECRET")
@@ -68,6 +31,27 @@ class Settings(BaseSettings):
                 + v
             )
         return v
+
+    # Sensitive values (loaded from .env)
+    DATABASE_URL: str
+    DROPBOX_APP_KEY: str
+    DROPBOX_APP_SECRET: str
+    SESSION_SECRET_KEY: str
+
+    # Classification pipeline settings
+    PYTORCH_CUDA_VERSION: str
+    CLASSIFICATION_MODEL_NAME: str
+    GPU_DEVICE: int = 0 if torch.cuda.is_available() else -1
+    CLASSIFICATION_BATCH_SIZE: int = 16
+
+    # Dropbox authentication redirect URI
+    DROPBOX_REDIRECT_URI: str = "authentication/callback"
+
+    # Dropbox account ID key in session
+    DROPBOX_ACCOUNT_ID_SESSION_KEY: str = "dropbox_account_id"
+
+    # File read chunk size (in bytes) when processing large zipped archives
+    ZIP_FILE_READ_CHUNK_SIZE: int = 1024 * 1024  # 1 MB
 
 
 # Create a single instance to import everywhere

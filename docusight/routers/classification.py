@@ -50,9 +50,18 @@ async def classify_folder(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Classify sentiment of all files in a folder.
-    Assumes file text has already been extracted into DB (File.text_content).
-    Stores results in ClassificationResult table.
+    Classifies sentiment for all documents in a specified folder and its subfolders.
+
+    Downloads unclassified documents from Dropbox, runs batch sentiment analysis using the configured Hugging Face pipeline,
+    stores results in the database, and returns all classified documents (including previously classified ones).
+
+    Args:
+        request (Request): FastAPI request object.
+        folder_path (str): Relative path to the folder to classify.
+        db (AsyncSession): Database session dependency.
+
+    Returns:
+        FolderClassificationResponseModel: Contains folder path and list of classified documents with sentiment labels and scores.
     """
     # create temporary directory for downloads
     user = await get_user(db, request.session)
@@ -160,7 +169,17 @@ async def classify_folder(
 
 
 async def classify_batch(classifier: Pipeline, texts: list[str]):
-    """Run batch classification in threadpool."""
+    """
+    Runs batch sentiment classification using the provided Hugging Face pipeline.
+    Executes in a threadpool for performance.
+
+    Args:
+        classifier (Pipeline): Hugging Face sentiment analysis pipeline.
+        texts (list[str]): List of document texts to classify.
+
+    Returns:
+        list[dict]: List of classification results, each with 'label' and 'score'.
+    """
     result = await run_in_threadpool(
         classifier, texts, batch_size=settings.CLASSIFICATION_BATCH_SIZE
     )

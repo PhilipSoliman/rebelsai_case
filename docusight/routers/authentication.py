@@ -37,6 +37,15 @@ class DropboxAuthCallbackResponseModel(BaseModel):
 
 @router.get("/dropbox", response_model=DropboxAuthURLResponseModel)
 async def dropbox_auth(request: Request):
+    """
+    Initiates the Dropbox OAuth2 authentication flow.
+
+    Args:
+        request (Request): FastAPI request object.
+
+    Returns:
+        DropboxAuthURLResponseModel: Contains the Dropbox authorization URL for user login. Go to this URL to authenticate.
+    """
     from fastapi.concurrency import run_in_threadpool
 
     auth_flow = get_auth_flow(request.base_url, request.session)
@@ -53,6 +62,19 @@ async def dropbox_callback(
     error: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    Handles the Dropbox OAuth2 callback, exchanges code for tokens, and updates/creates the user in the database.
+
+    Args:
+        request (Request): FastAPI request object.
+        code (str): OAuth2 authorization code from Dropbox.
+        state (str): OAuth2 state parameter for CSRF protection.
+        error (Optional[str]): Error message from Dropbox (if any).
+        db (AsyncSession): Database session dependency.
+
+    Returns:
+        DropboxAuthCallbackResponseModel: Contains user info and Dropbox tokens.
+    """
     from fastapi.concurrency import run_in_threadpool
 
     try:

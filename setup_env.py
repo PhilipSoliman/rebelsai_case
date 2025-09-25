@@ -101,7 +101,7 @@ def generate_default_env():
     )
     ENV_VARS["PYTORCH_CUDA_VERSION"] = ENV_VARS.get("PYTORCH_CUDA_VERSION", None)
     ENV_VARS["CLASSIFICATION_MODEL_NAME"] = ENV_VARS.get(
-        "CLASSIFICATION_MODEL_NAME", "nlptown/bert-base-multilingual-uncased-sentiment"
+        "CLASSIFICATION_MODEL_NAME", "DTAI-KULeuven/robbert-v2-dutch-sentiment"
     )
 
 

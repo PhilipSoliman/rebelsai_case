@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.8.0-cudnn-devel-ubuntu22.04
+FROM nvcr.io/nvidia/cuda:12.6.3-cudnn-devel-ubuntu22.04
 
 WORKDIR /docusight
 
@@ -15,8 +15,12 @@ RUN apt-get update && \
 
 COPY . /docusight
 
+# Set build arguments for Dropbox credentials
 ARG DROPBOX_APP_KEY
 ARG DROPBOX_APP_SECRET
+
+# Set CUDA version for pytorch (should match the CUDA version in the base image and have the 'cu' prefix, no dots)
+ENV PYTORCH_CUDA_VERSION=cu126
 
 # Run setup script with Dropbox credentials
 RUN python3 setup_env.py --app-key $DROPBOX_APP_KEY --app-secret $DROPBOX_APP_SECRET --use-global-python

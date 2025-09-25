@@ -33,6 +33,7 @@ class Folder(Base):
     name = Column(String, index=True)
     parent_id = Column(Integer, ForeignKey("folders.id"), nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    number_of_documents = Column(Integer, default=0)
 
     # Relationship to Documents, User, and other Folders
     documents = relationship("Document", back_populates="folder")

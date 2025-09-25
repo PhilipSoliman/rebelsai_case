@@ -299,9 +299,11 @@ async def add_folder_to_database(
     )
     db.add(folder)
     await db.flush()
+    number_of_documents = 0
     for file in os.listdir(current_dir):
         file_path = Path(current_dir) / file
         if file_path.is_file():
+            number_of_documents += 1
             original_meta = original_file_map[file_path]
             document = Document(
                 folder=folder,
@@ -317,7 +319,7 @@ async def add_folder_to_database(
         for subfolder_name in os.listdir(current_dir):
             subfolder_path = Path(current_dir) / subfolder_name
             if subfolder_path.is_dir():
-                _ = await add_folder_to_database(
+                subfolder = await add_folder_to_database(
                     current_dir=subfolder_path,
                     tmp_dir=tmp_dir,
                     db=db,
@@ -326,6 +328,15 @@ async def add_folder_to_database(
                     original_file_map=original_file_map,
                     parent_folder=folder,
                 )
+                number_of_documents += subfolder.number_of_documents
+
+    # Update number_of_documents
+    folder.number_of_documents = number_of_documents
+
+    # Flush pending changes
+    db.add(folder)
+    await db.flush()
+
     return folder
 
 

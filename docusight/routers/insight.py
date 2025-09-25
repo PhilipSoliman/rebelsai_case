@@ -66,6 +66,7 @@ class FolderResponseModel(BaseModel):
     path: str
     name: str
     parent_id: Optional[int] = None
+    number_of_documents: int
     documents: Optional[list[DocumentResponseModel]] = []
     subfolders: Optional[list["FolderResponseModel"]] = []
 
@@ -94,6 +95,7 @@ async def generate_folder_response(
         subfolders=[
             await generate_folder_response(subfolder, db) for subfolder in subfolders
         ],
+        number_of_documents=folder.number_of_documents,
     )
 
 

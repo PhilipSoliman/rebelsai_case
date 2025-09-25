@@ -1,4 +1,8 @@
+# Base image with CUDA and cuDNN
 FROM nvcr.io/nvidia/cuda:12.6.3-cudnn-devel-ubuntu22.04
+
+# Set CUDA version for pytorch (should match the CUDA version in the base image and have the 'cu' prefix, no dots)
+ENV PYTORCH_CUDA_VERSION=cu126
 
 WORKDIR /docusight
 
@@ -13,17 +17,29 @@ RUN apt-get update && \
     apt-get install -y python3.11 python3.11-venv python3.11-distutils python3-pip && \
     ln -sf /usr/bin/python3.11 /usr/bin/python3
 
-COPY . /docusight
+# Upgrade pip and install pip-tools
+RUN python3 -m pip install --upgrade pip && \
+    python3 -m pip install pip-tools
 
-# Set build arguments for Dropbox credentials
-ARG DROPBOX_APP_KEY
-ARG DROPBOX_APP_SECRET
+# Copy pyproject.toml and compile requirements.txt
+COPY pyproject.toml ./
+RUN pip-compile --generate-hashes --output-file=requirements.txt pyproject.toml
 
-# Set CUDA version for pytorch (should match the CUDA version in the base image and have the 'cu' prefix, no dots)
-ENV PYTORCH_CUDA_VERSION=cu126
+# Install Python dependencies
+RUN python3 -m pip install -r requirements.txt
 
-# Run setup script with Dropbox credentials
-RUN python3 setup_env.py --app-key $DROPBOX_APP_KEY --app-secret $DROPBOX_APP_SECRET --use-global-python
+# Install local package in editable mode
+RUN python3 -m pip install -e .
+
+# Pre-install torch with cuda support
+RUN python3 -m pip install torch --index-url https://download.pytorch.org/whl/${PYTORCH_CUDA_VERSION}
+
+# Pre-download Hugging Face models (example for transformers)
+ENV MODEL_NAME=nlptown/bert-base-multilingual-uncased-sentiment
+RUN python3 -c "from transformers import AutoModelForSequenceClassification; AutoModelForSequenceClassification.from_pretrained('${MODEL_NAME}')"
+
+# Copy the rest of the application code
+COPY . .
 
 EXPOSE 8000
 

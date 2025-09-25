@@ -57,7 +57,7 @@ It can scan a (zipped) folder of documents, extract metadata, and perform docume
 ## Requirements
 * Python 3.9+
 * Dropbox account (for OAuth2 authentication and blob storage)
-* [Dropbox App](https://www.dropbox.com/developers/apps?_tk=pilot_lp&_ad=topbar4&_camp=myapps). Either create your own or use an existing provided one with:
+* [Dropbox App](https://www.dropbox.com/developers/apps?_tk=pilot_lp&_ad=topbar4&_camp=myapps). Either create your own or use an existing/provided one with:
   * App Key and App Secret; 
   * Redirect URI to `http://<host_ip>:8000/authentication/callback`;
   * Permissions: `files.metadata.write`, `files.metadata.read`, `files.content.write`, `files.content.read`.
@@ -76,6 +76,20 @@ This will:
 * install dependencies;
 * automatically detect and install the appropriate PyTorch+CUDA version (if a CUDA-capable GPU is detected, otherwise CPU-only version is installed).
 * create a `.env` file with the provided Dropbox app key and secret as well as PyTorch+CUDA version and classification model name;
+
+Alternatively, you can manually add an existing .env in the [docusight](./docusight/) directory with the following variables:
+```sh
+DROPBOX_APP_KEY=<your_dropbox_app_key>
+DROPBOX_APP_SECRET=<your_dropbox_app_secret>
+PYTORCH_CUDA_VERSION=<your_pytorch_cuda_version>  # e.g. cu126, cu117, cpu
+CLASSIFICATION_MODEL_NAME=<your_classification_model_name>  # e.g. DTAI-KULeuven/robbert-v2-dutch-sentiment
+DATABASE_URL=sqlite+aiosqlite:///./docusight.db
+SESSION_SECRET_KEY=<your_random_secret_key>  # e.g. a random 32 alphanumeric string
+```
+Followed by running the setup script without arguments to install dependencies:
+```bash
+<your preferred base python> setup_env.py
+```
 
 ---
 
@@ -163,5 +177,5 @@ Commands assume you are in the project root directory.
   * Can be adapted to use more robust, cloud-based databases (PostgreSQL, MySQL) for better performance and scalability.
   * If the host machine's GPU has CUDA capability 7.0 or higher, the hugging face model can be precompiled with PyTorch 2.0+, for faster document classification.
   * Can use Docker Compose or Kubernetes for orchestrating multiple instances of the service and load balancing.
-  * Can be use a more specifically trained model for document classification, fine-tuned on the specific types of documents being processed. The current models do not perform consistently on the provided sample documents.
+  * Can use a more specifically trained model for document classification, fine-tuned on the specific types of documents being processed. The current models do not perform consistently on the provided sample documents.
 ---
